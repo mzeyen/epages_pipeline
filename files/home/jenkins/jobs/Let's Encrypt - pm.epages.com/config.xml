@@ -1,0 +1,72 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <description>Get Let&apos;s encrypt certificate.</description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <hudson.plugins.buildblocker.BuildBlockerProperty plugin="build-blocker-plugin@1.7.3">
+      <useBuildBlocker>false</useBuildBlocker>
+      <blockLevel>GLOBAL</blockLevel>
+      <scanQueueFor>DISABLED</scanQueueFor>
+      <blockingJobs></blockingJobs>
+    </hudson.plugins.buildblocker.BuildBlockerProperty>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>domain</name>
+          <description>Full domain to get certificate wihtout the www. &lt;/br&gt;
+Example: testck001.pm.epages.com</description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+    <com.dabsquared.gitlabjenkins.connection.GitLabConnectionProperty plugin="gitlab-plugin@1.4.3">
+      <gitLabConnection>https://am-git.intern.epages.de/</gitLabConnection>
+    </com.dabsquared.gitlabjenkins.connection.GitLabConnectionProperty>
+    <com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty plugin="naginator@1.17.2">
+      <optOut>false</optOut>
+    </com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty>
+    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.25">
+      <autoRebuild>false</autoRebuild>
+      <rebuildDisabled>false</rebuildDisabled>
+    </com.sonyericsson.rebuild.RebuildSettings>
+    <de.pellepelster.jenkins.walldisplay.WallDisplayJobProperty plugin="jenkinswalldisplay@0.6.30"/>
+  </properties>
+  <scm class="hudson.scm.NullSCM"/>
+  <assignedNode>pm.epages.com</assignedNode>
+  <canRoam>false</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers/>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash -ex
+export BUILD_ID=dontKillMe
+
+domain_www=&quot;www.$domain&quot;
+
+UMASK=022 /opt/letsencrypt/certbot-auto certonly \
+  --cert-name $domain \
+  --domains $domain,$domain_www \
+  --allow-subset-of-names \
+  --agree-tos \
+  --webroot \
+  -w /srv/epages/eproot/Shared/WebRoot/ \
+  -n 
+  
+sed \
+  -e &quot;s|ServerName.*|ServerName $domain|&quot; \
+  -e &quot;s|ServerAlias.*|ServerAlias $domain_www|&quot; \
+  -e &quot;s|SSLCertificateFile.*|SSLCertificateFile /etc/letsencrypt/live/$domain/cert.pem|&quot; \
+  -e &quot;s|SSLCertificateKeyFile.*|SSLCertificateKeyFile /etc/letsencrypt/live/$domain/privkey.pem|&quot; \
+  -e &quot;s|SSLCACertificateFile.*|SSLCACertificateFile /etc/letsencrypt/live/$domain/chain.pem|&quot; \
+  /etc/apache2-epages/extra/httpd-vhosts_unity.conf &gt; /etc/apache2-epages/extra/httpd-vhosts_additional.d/${domain}.conf
+
+/etc/init.d/apache2-epages reload
+  </command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers/>
+  <buildWrappers/>
+</project>

@@ -1,0 +1,36 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<flow-definition plugin="workflow-job@2.1">
+  <actions/>
+  <description></description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <hudson.plugins.buildblocker.BuildBlockerProperty plugin="build-blocker-plugin@1.7.3">
+      <useBuildBlocker>false</useBuildBlocker>
+      <blockLevel>GLOBAL</blockLevel>
+      <scanQueueFor>DISABLED</scanQueueFor>
+      <blockingJobs></blockingJobs>
+    </hudson.plugins.buildblocker.BuildBlockerProperty>
+    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.25">
+      <autoRebuild>false</autoRebuild>
+      <rebuildDisabled>false</rebuildDisabled>
+    </com.sonyericsson.rebuild.RebuildSettings>
+  </properties>
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@2.1">
+    <script>node {
+parallel (
+     &quot;stream 1&quot; : {  
+         stage &quot;Run RAT Tests&quot;
+         sh &quot;Run RAT as in http://jenkins.intern.epages.de:8080/job/rat_test_dev/configure&quot;
+         sh &quot;docker pull kayabendroth/oracle-jdk8:latest&quot;
+         echo &quot;We are testing against eP6 &apos;cd-vm-test-master-08.intern.epages.de&apos; with ePJ on the same host.&quot;
+         sh &quot;docker run --rm -t -v ${WORKSPACE}:/opt/build -e &apos;EP6_HOSTNAME=cd-vm-test-master-08.intern.epages.de&apos; kayabendroth/oracle-jdk8:latest&apos; /bin/bash -c &apos;cd /opt/build; ./gradlew clearReports clean check aggregate --continue&apos;&quot;
+         echo &quot;echo stream1; sleep 7s; echo stream1&quot; },
+     &quot;stream 2&quot; : {
+         stage &quot;Run Webservice Tests&quot;
+         echo &quot;echo stream2; sleep 5s; echo &apos;Jan/Bastian is doing this part with story: https://epages.atlassian.net/browse/AD-4393&apos;&quot; }
+   )
+}</script>
+    <sandbox>false</sandbox>
+  </definition>
+  <triggers/>
+</flow-definition>

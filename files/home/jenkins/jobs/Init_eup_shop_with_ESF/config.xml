@@ -1,0 +1,113 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description>&lt;img src=&quot;http://glossi-media-us-west.s3-us-west-1.amazonaws.com/media/ff43d04e80c048958629e9fbe2c80f57hpINWL.gif&quot;/&gt;</description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <hudson.plugins.buildblocker.BuildBlockerProperty plugin="build-blocker-plugin@1.7.3">
+      <useBuildBlocker>false</useBuildBlocker>
+      <blockLevel>UNDEFINED</blockLevel>
+      <scanQueueFor>DISABLED</scanQueueFor>
+      <blockingJobs></blockingJobs>
+    </hudson.plugins.buildblocker.BuildBlockerProperty>
+    <jenkins.model.BuildDiscarderProperty>
+      <strategy class="hudson.tasks.LogRotator">
+        <daysToKeep>-1</daysToKeep>
+        <numToKeep>10</numToKeep>
+        <artifactDaysToKeep>-1</artifactDaysToKeep>
+        <artifactNumToKeep>-1</artifactNumToKeep>
+      </strategy>
+    </jenkins.model.BuildDiscarderProperty>
+    <com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty plugin="naginator@1.17.2">
+      <optOut>false</optOut>
+    </com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty>
+    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.25">
+      <autoRebuild>false</autoRebuild>
+      <rebuildDisabled>false</rebuildDisabled>
+    </com.sonyericsson.rebuild.RebuildSettings>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>TARGET_DOMAIN</name>
+          <description>The &lt;b&gt;domain&lt;/b&gt; of the ePages installation you want to test, e.g. plus-one-nightly.epages.com.</description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>SHOP</name>
+          <description>The &lt;b&gt;alias&lt;/b&gt; of the ePages shop you want to test, e.g. DemoShop.</description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>TEST_CLASSES</name>
+          <description>&lt;b&gt;One or more test classes&lt;/b&gt; to run, e.g. com.epages.cartridges.de_epages.customer.tests.LoginTest.</description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+    <de.pellepelster.jenkins.walldisplay.WallDisplayJobProperty plugin="jenkinswalldisplay@0.6.30"/>
+  </properties>
+  <scm class="hudson.scm.NullSCM"/>
+  <quietPeriod>0</quietPeriod>
+  <assignedNode>esf_docker</assignedNode>
+  <canRoam>false</canRoam>
+  <disabled>true</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers/>
+  <concurrentBuild>true</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+
+if [[ -d esf ]] ; then sudo rm -Rf esf ; fi
+
+mkdir esf
+mkdir esf/log</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+export DISPLAY=&quot;:0&quot;
+
+if [[ -z ${TEST_CLASSES} ]] ; then echo &apos;No test classes or groups given!&apos; ; exit 1 ; fi
+
+# pull latest esf image
+set +x; docker login -u ${DOCKER_USERNAME} -p &quot;${DOCKER_PASSWORD}&quot; -e teamorange@epages.com; set -x
+docker pull epages/esf:latest
+
+# prepare and run esf
+ESF_PARAMETERS=&quot;-browser firefox -tc ${TEST_CLASSES} -shop ${SHOP} -url http://${TARGET_DOMAIN}/epages -email max.mustermann@epages.com&quot;
+ESF_PARAMETERS=&quot;${ESF_PARAMETERS} -l de_DE -ap 0&quot;
+
+docker run --rm --user=root -v ${WORKSPACE}/esf/log:/home/esf/esf/log -t epages/esf:latest ${ESF_PARAMETERS}
+EXIT_CODE=&quot;$?&quot;
+
+for RESULT_FILE in `find &quot;./log/&quot; -name &quot;emailable-report.html&quot; -type f | sort | tail -n1` ; do cp -vf &quot;$RESULT_FILE&quot; /tmp/. ; done
+exit &quot;${EXIT_CODE}&quot;</command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers>
+    <hudson.tasks.ArtifactArchiver>
+      <artifacts>esf/log/**</artifacts>
+      <allowEmptyArchive>false</allowEmptyArchive>
+      <onlyIfSuccessful>false</onlyIfSuccessful>
+      <fingerprint>false</fingerprint>
+      <defaultExcludes>true</defaultExcludes>
+      <caseSensitive>true</caseSensitive>
+    </hudson.tasks.ArtifactArchiver>
+  </publishers>
+  <buildWrappers>
+    <hudson.plugins.timestamper.TimestamperBuildWrapper plugin="timestamper@1.8.4"/>
+    <hudson.plugins.ansicolor.AnsiColorBuildWrapper plugin="ansicolor@0.4.2">
+      <colorMapName>xterm</colorMapName>
+    </hudson.plugins.ansicolor.AnsiColorBuildWrapper>
+    <org.jenkinsci.plugins.credentialsbinding.impl.SecretBuildWrapper plugin="credentials-binding@1.11">
+      <bindings>
+        <org.jenkinsci.plugins.credentialsbinding.impl.UsernamePasswordMultiBinding>
+          <credentialsId>596d6633-1bb8-4ba9-9a9d-b4c652127182</credentialsId>
+          <usernameVariable>DOCKER_USERNAME</usernameVariable>
+          <passwordVariable>DOCKER_PASSWORD</passwordVariable>
+        </org.jenkinsci.plugins.credentialsbinding.impl.UsernamePasswordMultiBinding>
+      </bindings>
+    </org.jenkinsci.plugins.credentialsbinding.impl.SecretBuildWrapper>
+  </buildWrappers>
+</project>

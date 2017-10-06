@@ -1,0 +1,141 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description>&lt;img src=&quot;http://glossi-media-us-west.s3-us-west-1.amazonaws.com/media/ff43d04e80c048958629e9fbe2c80f57hpINWL.gif&quot;/&gt;</description>
+  <logRotator class="hudson.tasks.LogRotator">
+    <daysToKeep>-1</daysToKeep>
+    <numToKeep>10</numToKeep>
+    <artifactDaysToKeep>-1</artifactDaysToKeep>
+    <artifactNumToKeep>-1</artifactNumToKeep>
+  </logRotator>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty plugin="naginator@1.17.2">
+      <optOut>false</optOut>
+    </com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty>
+    <hudson.plugins.buildblocker.BuildBlockerProperty plugin="build-blocker-plugin@1.7.3">
+      <useBuildBlocker>false</useBuildBlocker>
+    </hudson.plugins.buildblocker.BuildBlockerProperty>
+    <jenkins.advancedqueue.priority.strategy.PriorityJobProperty plugin="PrioritySorter@3.4">
+      <useJobPriority>false</useJobPriority>
+      <priority>-1</priority>
+    </jenkins.advancedqueue.priority.strategy.PriorityJobProperty>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>TARGET_DOMAIN</name>
+          <description>The &lt;b&gt;domain&lt;/b&gt; of the ePages installation you want to test, e.g. plus-one-nightly.epages.com.</description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>SHOP</name>
+          <description>The &lt;b&gt;alias&lt;/b&gt; of the ePages shop you want to test, e.g. DemoShop.</description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>TEST_CLASSES</name>
+          <description>&lt;b&gt;One or more test classes&lt;/b&gt; to run, e.g. com.epages.cartridges.de_epages.customer.tests.LoginTest.</description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>TEST_GROUPS</name>
+          <description>&lt;b&gt;One or more test groups&lt;/b&gt; to run, e.g. SEARCH,CUSTOMER. &lt;b&gt;Note:&lt;/b&gt; Defining both parameters TEST_CLASSES and TEST_GROUPS results in using test groups only!</description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>SITE_URL</name>
+          <description></description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>STORE</name>
+          <description></description>
+          <defaultValue>Store</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>GRID_HUB_URL</name>
+          <description>E.g. http://cd-vm-docker-host-001.intern.epages.de:4444/wd/hub</description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.25">
+      <autoRebuild>false</autoRebuild>
+      <rebuildDisabled>false</rebuildDisabled>
+    </com.sonyericsson.rebuild.RebuildSettings>
+    <de.pellepelster.jenkins.walldisplay.WallDisplayJobProperty plugin="jenkinswalldisplay@0.6.30"/>
+  </properties>
+  <scm class="hudson.scm.NullSCM"/>
+  <quietPeriod>0</quietPeriod>
+  <assignedNode>linux &amp;&amp; unzip &amp;&amp; jre7 &amp;&amp; firefox</assignedNode>
+  <canRoam>false</canRoam>
+  <disabled>true</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers/>
+  <concurrentBuild>true</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+
+if [[ -d esf ]] ; then rm -Rf esf ; fi</command>
+    </hudson.tasks.Shell>
+    <hudson.plugins.copyartifact.CopyArtifact plugin="copyartifact@1.38.1">
+      <project>Build_ESF</project>
+      <filter>build/distributions/esf-epages6-*.*.*-SNAPSHOT.zip</filter>
+      <target>esf</target>
+      <excludes></excludes>
+      <selector class="hudson.plugins.copyartifact.WorkspaceSelector"/>
+      <flatten>true</flatten>
+      <doNotFingerprintArtifacts>false</doNotFingerprintArtifacts>
+    </hudson.plugins.copyartifact.CopyArtifact>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+export DISPLAY=&quot;:0&quot;
+
+if [[ -z ${TEST_CLASSES} &amp;&amp; -z ${TEST_GROUPS} ]] ; then echo &apos;No test classes or groups given!&apos; ; exit 1 ; fi
+THINGS_TO_TEST=
+if [[ &quot;${TEST_CLASSES}&quot; ]] ; then THINGS_TO_TEST=&quot;-tc ${TEST_CLASSES}&quot; ; fi
+if [[ &quot;${TEST_GROUPS}&quot; ]] ; then THINGS_TO_TEST=&quot;-groups ${TEST_GROUPS}&quot; ; fi
+if [[ &quot;${GRID_HUB_URL}&quot; ]] ; then HUB_URL=&quot;--hub-url ${GRID_HUB_URL}&quot; ; fi
+
+if [[ -r /usr/lib/jvm/java-7-openjdk/jre/bin/java ]] ; then export JAVA_HOME=&apos;/usr/lib/jvm/java-7-openjdk/jre&apos; ; fi
+if [[ -r /tmp/emailable-report.html ]] ; then rm -fv /tmp/emailable-report.html ; fi
+cd esf || exit 1
+ESF_ZIP_FILE=&quot;`find . -name &quot;esf-*.zip&quot; -type f | sort -r | head -n1`&quot;
+ESF_STRING=&quot;`echo ${ESF_ZIP_FILE} | sed -e &apos;s/.zip//&apos;`&quot;
+unzip &quot;${ESF_ZIP_FILE}&quot;
+cd &quot;${ESF_STRING}&quot; || exit 1
+if [[ -x bin/esf-epages6 ]] ; then
+   if [[ ${SITE_URL} ]] ; then
+      echo &quot;bin/esf-epages6 -browser firefox ${THINGS_TO_TEST} -shop ${SHOP} -url http://${TARGET_DOMAIN}/epages --site-url http://${SITE_URL}/epages -email max.mustermann@epages.com --csv-report log/results.csv --store-name ${STORE} ${HUB_URL}&quot;
+      bin/esf-epages6 -browser firefox ${THINGS_TO_TEST} -shop ${SHOP} -url http://${TARGET_DOMAIN}/epages --site-url http://${SITE_URL}/epages -email max.mustermann@epages.com --csv-report log/results.csv --store-name ${STORE} ${HUB_URL}
+   else 
+      echo &quot;bin/esf-epages6 -browser firefox ${THINGS_TO_TEST} -shop ${SHOP} -url http://${TARGET_DOMAIN}/epages -email max.mustermann@epages.com --csv-report log/results.csv --store-name ${STORE} ${HUB_URL}&quot;
+      bin/esf-epages6 -browser firefox ${THINGS_TO_TEST} -shop ${SHOP} -url http://${TARGET_DOMAIN}/epages -email max.mustermann@epages.com --csv-report log/results.csv --store-name ${STORE} ${HUB_URL}
+   fi
+else
+   exit 1
+fi
+EXIT_CODE=&quot;$?&quot;
+for RESULT_FILE in `find &quot;./log/&quot; -name &quot;emailable-report.html&quot; -type f | sort | tail -n1` ; do cp -vf &quot;$RESULT_FILE&quot; /tmp/. ; done
+exit &quot;${EXIT_CODE}&quot;</command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers>
+    <hudson.tasks.ArtifactArchiver>
+      <artifacts>esf/esf*/log/**</artifacts>
+      <allowEmptyArchive>false</allowEmptyArchive>
+      <onlyIfSuccessful>false</onlyIfSuccessful>
+      <fingerprint>false</fingerprint>
+      <defaultExcludes>true</defaultExcludes>
+      <caseSensitive>true</caseSensitive>
+    </hudson.tasks.ArtifactArchiver>
+  </publishers>
+  <buildWrappers>
+    <hudson.plugins.ansicolor.AnsiColorBuildWrapper plugin="ansicolor@0.4.2">
+      <colorMapName>xterm</colorMapName>
+    </hudson.plugins.ansicolor.AnsiColorBuildWrapper>
+    <hudson.plugins.timestamper.TimestamperBuildWrapper plugin="timestamper@1.8.4"/>
+  </buildWrappers>
+</project>

@@ -1,0 +1,159 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description>This job will install an epages6 with the latest released version.</description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <jenkins.model.BuildDiscarderProperty>
+      <strategy class="hudson.tasks.LogRotator">
+        <daysToKeep>60</daysToKeep>
+        <numToKeep>-1</numToKeep>
+        <artifactDaysToKeep>-1</artifactDaysToKeep>
+        <artifactNumToKeep>-1</artifactNumToKeep>
+      </strategy>
+    </jenkins.model.BuildDiscarderProperty>
+    <hudson.plugins.buildblocker.BuildBlockerProperty plugin="build-blocker-plugin@1.7.3">
+      <useBuildBlocker>false</useBuildBlocker>
+      <blockLevel>GLOBAL</blockLevel>
+      <scanQueueFor>DISABLED</scanQueueFor>
+      <blockingJobs></blockingJobs>
+    </hudson.plugins.buildblocker.BuildBlockerProperty>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <org.jvnet.jenkins.plugins.nodelabelparameter.NodeParameterDefinition plugin="nodelabelparameter@1.7.2">
+          <name>MACHINE</name>
+          <description>Machine to update</description>
+          <allowedSlaves>
+            <string>unity-01.epages.com</string>
+            <string>unity-02.epages.com</string>
+          </allowedSlaves>
+          <defaultSlaves/>
+          <triggerIfResult>multiSelectionDisallowed</triggerIfResult>
+          <allowMultiNodeSelection>false</allowMultiNodeSelection>
+          <triggerConcurrentBuilds>false</triggerConcurrentBuilds>
+          <ignoreOfflineNodes>false</ignoreOfflineNodes>
+          <nodeEligibility class="org.jvnet.jenkins.plugins.nodelabelparameter.node.AllNodeEligibility"/>
+        </org.jvnet.jenkins.plugins.nodelabelparameter.NodeParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>UNITY_HOST</name>
+          <description>external unity instance FQDN</description>
+          <defaultValue>vm.unity.epages.com</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>UNITY_PORT</name>
+          <description>external unity instance port</description>
+          <defaultValue>34729</defaultValue>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+    <com.dabsquared.gitlabjenkins.connection.GitLabConnectionProperty plugin="gitlab-plugin@1.4.3">
+      <gitLabConnection>https://am-git.intern.epages.de/</gitLabConnection>
+    </com.dabsquared.gitlabjenkins.connection.GitLabConnectionProperty>
+    <com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty plugin="naginator@1.17.2">
+      <optOut>false</optOut>
+    </com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty>
+    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.25">
+      <autoRebuild>false</autoRebuild>
+      <rebuildDisabled>false</rebuildDisabled>
+    </com.sonyericsson.rebuild.RebuildSettings>
+    <de.pellepelster.jenkins.walldisplay.WallDisplayJobProperty plugin="jenkinswalldisplay@0.6.30"/>
+  </properties>
+  <scm class="hudson.scm.NullSCM"/>
+  <canRoam>true</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers/>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+export BUILD_ID=dontKillMe
+export EPAGES_INSTALLATION=&apos;-epages&apos;
+curl -L ftp://epages-software.de/repo/epages/install-epages.sh | bash
+
+cat &gt;&gt; /etc/sysconfig/epages6 &lt;&lt; EOF
+
+EPAGES_INSTALL_HTTPD_OPTS=&quot;-DSSL -DVHOSTS_NAME -DUNITY_VHOST&quot;
+EPAGES_INSTALL_EPAGESJ_OPTS=&quot;-Xms256m -Xmx256m&quot;
+EPAGES_INSTALL_UNITY_HOST=${UNITY_HOST}
+EPAGES_INSTALL_UNITY_PORT=${UNITY_PORT}
+EOF
+
+#configure mysql
+mkdir -p /etc/my.cnf.d/
+cat &gt; /etc/my.cnf.d/epages_am.conf &lt;&lt; EOF
+slave_net_timeout=60
+net_write_timeout=600
+query_cache_type=2
+query_cache_size=1M
+table_open_cache=500
+table_definition_cache=5000
+innodb_file_per_table=1
+innodb_buffer_pool_size=50M
+innodb_open_files=300
+innodb_log_buffer_size=5M
+max_heap_table_size=10M
+tmp_table_size=10M
+max_allowed_packet=16M
+EOF
+
+/var/epages/ini-config.sh -f /var/epages/conf/appsrv/localhost.conf -s DefaultPool -k ports -v &quot;10045-10051&quot;
+/var/epages/ini-config.sh -f /var/epages/conf/appsrv/localhost.conf -s DefaultPool -k maxmemory -v 490
+
+#install epages
+/var/epages/install-epages.sh --singlehost
+
+
+#configure unity
+. /etc/default/epages6
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/set.pl -storename Store -path / \
+  UnityWebServerPort=&quot;80&quot; UnitySSLWebServerPort=&quot;443&quot; HasSSLCertificate=&quot;1&quot; HasSSLCertificateUnity=&quot;1&quot; UnityBaseURL=&quot;http://$(hostname --fqdn)&quot; UnityUrlScheme=&quot;$(hostname --fqdn)&quot; UnityApiUrlScheme=&quot;${UNITY_HOST}/api/v2&quot;
+
+/var/epages/ini-config.sh -i -f /srv/epages/eproot/Shared/Config/Database.d/Store.conf -s Connection -k jwtsecret -v &apos;this-is-super-secret---not&apos;
+
+cat &gt; /etc/apache2-epages/envvars.local &lt;&lt; EOF
+export APACHE_UNITY_HOST APACHE_UNITY_PORT
+APACHE_UNITY_HOST=${UNITY_HOST}
+APACHE_UNITY_PORT=${UNITY_PORT}
+EOF
+
+/etc/init.d/apache2-epages restart</command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers>
+    <hudson.plugins.emailext.ExtendedEmailPublisher plugin="email-ext@2.57.2">
+      <recipientList>f.ziller@epages.de, e.mueller@epages.de, i.hergst@epages.com</recipientList>
+      <configuredTriggers>
+        <hudson.plugins.emailext.plugins.trigger.FailureTrigger>
+          <email>
+            <subject>$PROJECT_DEFAULT_SUBJECT</subject>
+            <body>$PROJECT_DEFAULT_CONTENT</body>
+            <recipientProviders>
+              <hudson.plugins.emailext.plugins.recipients.DevelopersRecipientProvider/>
+            </recipientProviders>
+            <attachmentsPattern></attachmentsPattern>
+            <attachBuildLog>false</attachBuildLog>
+            <compressBuildLog>false</compressBuildLog>
+            <replyTo>$PROJECT_DEFAULT_REPLYTO</replyTo>
+            <contentType>project</contentType>
+          </email>
+        </hudson.plugins.emailext.plugins.trigger.FailureTrigger>
+      </configuredTriggers>
+      <contentType>default</contentType>
+      <defaultSubject>$DEFAULT_SUBJECT</defaultSubject>
+      <defaultContent>$DEFAULT_CONTENT</defaultContent>
+      <attachmentsPattern></attachmentsPattern>
+      <presendScript>$DEFAULT_PRESEND_SCRIPT</presendScript>
+      <postsendScript></postsendScript>
+      <attachBuildLog>false</attachBuildLog>
+      <compressBuildLog>false</compressBuildLog>
+      <replyTo>$DEFAULT_REPLYTO</replyTo>
+      <saveOutput>false</saveOutput>
+      <disabled>false</disabled>
+    </hudson.plugins.emailext.ExtendedEmailPublisher>
+  </publishers>
+  <buildWrappers>
+    <hudson.plugins.timestamper.TimestamperBuildWrapper plugin="timestamper@1.8.4"/>
+  </buildWrappers>
+</project>

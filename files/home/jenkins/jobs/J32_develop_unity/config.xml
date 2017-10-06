@@ -1,0 +1,311 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description>Welcome to the Nightly of &lt;b&gt;Team epages6 Unity&lt;/b&gt;.&lt;br&gt;&lt;br&gt;&#xd;
+&#xd;
+- This job automatically builds up a develop version every night.&lt;br&gt;&#xd;
+- Unity latest&#xd;
+- Unity shops can be created&#xd;
+</description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <jenkins.model.BuildDiscarderProperty>
+      <strategy class="hudson.tasks.LogRotator">
+        <daysToKeep>-1</daysToKeep>
+        <numToKeep>10</numToKeep>
+        <artifactDaysToKeep>-1</artifactDaysToKeep>
+        <artifactNumToKeep>-1</artifactNumToKeep>
+      </strategy>
+    </jenkins.model.BuildDiscarderProperty>
+    <hudson.plugins.buildblocker.BuildBlockerProperty plugin="build-blocker-plugin@1.7.3">
+      <useBuildBlocker>false</useBuildBlocker>
+      <blockLevel>UNDEFINED</blockLevel>
+      <scanQueueFor>DISABLED</scanQueueFor>
+      <blockingJobs></blockingJobs>
+    </hudson.plugins.buildblocker.BuildBlockerProperty>
+    <com.dabsquared.gitlabjenkins.connection.GitLabConnectionProperty plugin="gitlab-plugin@1.4.3">
+      <gitLabConnection>https://am-git.intern.epages.de/</gitLabConnection>
+    </com.dabsquared.gitlabjenkins.connection.GitLabConnectionProperty>
+    <com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty plugin="naginator@1.17.2">
+      <optOut>false</optOut>
+    </com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty>
+    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.25">
+      <autoRebuild>false</autoRebuild>
+      <rebuildDisabled>false</rebuildDisabled>
+    </com.sonyericsson.rebuild.RebuildSettings>
+    <de.pellepelster.jenkins.walldisplay.WallDisplayJobProperty plugin="jenkinswalldisplay@0.6.30"/>
+  </properties>
+  <scm class="hudson.plugins.git.GitSCM" plugin="git@2.5.3">
+    <configVersion>2</configVersion>
+    <userRemoteConfigs>
+      <hudson.plugins.git.UserRemoteConfig>
+        <url>git@github.com:ePages-de/Cartridges.git</url>
+        <credentialsId>596d6633-1bb8-4ba9-9a9d-b4c652127182</credentialsId>
+      </hudson.plugins.git.UserRemoteConfig>
+    </userRemoteConfigs>
+    <branches>
+      <hudson.plugins.git.BranchSpec>
+        <name>*/develop</name>
+      </hudson.plugins.git.BranchSpec>
+    </branches>
+    <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+    <submoduleCfg class="list"/>
+    <extensions/>
+  </scm>
+  <quietPeriod>0</quietPeriod>
+  <assignedNode>greenteam-vm-01</assignedNode>
+  <canRoam>false</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers/>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command># Deploy epages-infra repo.
+echo &quot;Step: Update infra repo&quot;
+if [[ ! -d ~/epages-infra/.git ]] ; then
+    cd ~
+    git clone git@github.com:ePages-de/epages-infra.git
+else
+    cd ~/epages-infra &amp;&amp; git pull origin master
+fi
+echo &quot;teamepages6: Update infra repo done&quot;</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>export BUILD_ID=dontKillMe
+echo &quot;Step: Install epages6&quot;
+export VERSION=`~/epages-infra/scripts/epages/util/get_version_number_from_makefile.sh -f &quot;${WORKSPACE}/DE_EPAGES/Makefile.PL&quot;`
+echo &quot;Version detected: &quot; ${VERSION}
+export REPO=&quot;ftp://ftp.epages.com/pub/epages/build/repo/${VERSION}/latest&quot;
+
+#~/epages-infra/scripts/epages/jenkins-installs-epages.sh -i simple/install-epages.conf -r ${REPO}
+echo &quot;teamepages6: Install base done&quot;
+
+export EPAGES_REPO=ftp://ftp.epages.com/pub/epages/build/repo/$VERSION/latest
+yum -y install perl-Data-Dumper
+rpm -hiv $EPAGES_REPO/yum/epages-release.noarch.rpm
+/var/epages/SetRepository.sh -r $EPAGES_REPO 
+yum -y install @epages
+
+
+
+echo &quot;Step: load docker container&quot;
+# start docker
+service docker start
+docker-compose up -d
+</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>export BUILD_ID=dontKillMe
+
+. /etc/default/epages6
+
+# make sure services running
+service epages6 start
+service epages6 start_java
+
+
+echo &quot;Step: Pull develop&quot;
+. /etc/default/epages6
+cd $EPAGES
+mv Cartridges Cartridges_old
+git clone git@github.com:ePages-de/Cartridges.git  Cartridges
+cd $EPAGES_CARTRIDGES
+git remote add upstream git@github.com:ePages&#x81;-de/Cartridges.git
+git branch &#x81;--set-upstream-to=upstream/develop
+git checkout develop
+git pull origin develop
+
+echo &quot;Step: Start reinstall&quot;
+. /etc/default/epages6
+service epages6 start
+service epages6 start_java
+cd $EPAGES_CARTRIDGES/DE_EPAGES
+$PERL Makefile.PL
+make reinstall
+
+
+
+/var/epages/install-additional-cartridges.sh -c ~/epages-infra/configuration/install-epages/simple/install-epages.conf
+echo &quot;teamepages6: Install additional cartridges done&quot;</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>export BUILD_ID=dontKillMe
+/etc/init.d/epages6 start
+~/epages-infra/scripts/epages/create_shop.sh -n pdomin -t Demo -s Store -i 
+
+echo &quot;teamepages6: Build nightly done&quot;
+
+
+</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+cd ~/epages-infra
+git pull origin master
+. /etc/default/epages6
+echo &quot;Step: Set up 4 app server&quot;
+~/epages-infra/scripts/epages/configure_app_servers.sh -m 500 -n 4
+</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+echo &quot;Step: Set up for Unity&quot;
+. /etc/default/epages6
+
+curl http://am-vm-intranet.intern.epages.de/AM/certificates/_.intern.epages.de/_.intern.epages.de.crt | tee /etc/apache2-epages/ssl.crt/unity.crt &gt; /etc/apache2-epages/ssl.crt/server.crt
+curl http://am-vm-intranet.intern.epages.de/AM/certificates/_.intern.epages.de/_.intern.epages.de.key | tee /etc/apache2-epages/ssl.key/unity.key &gt; /etc/apache2-epages/ssl.key/server.key
+curl http://am-vm-intranet.intern.epages.de/AM/certificates/_.intern.epages.de/ca.crt &gt; /etc/apache2-epages/ssl.crt/ca.crt
+
+sed -i &quot;s/^HTTPD_OPTS=.*/HTTPD_OPTS=&apos;-DSSL -DVHOSTS_NAME -DUNITY_VHOST&apos;/&quot; /etc/default/epages6
+
+#sed -i &quot;s/^EPAGES_UNITY_HOST=.*/EPAGES_UNITY_HOST=ep6unity2.vm-intern.epages.com/&quot; /etc/default/epages6
+
+/var/epages/ini-config.sh -i -f $EPAGES_CONFIG/Database.d/Store.conf -k jwtsecret -v &apos;this-is-super-secret---not&apos;
+
+
+export MYHOSTNAME=$(hostname --fqdn)
+
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/set.pl -storename Site -path &quot;/Stores/Store&quot; UnityUrlScheme=&quot;$MYHOSTNAME&quot;
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/set.pl -storename Site -path &quot;/Stores/Store&quot; UnityApiUrlScheme=&quot;api.$MYHOSTNAME/api/v2&quot;
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/set.pl -storename Site -path &quot;/Stores/Store&quot; UnityUseSubdomainRouting=&quot;1&quot;
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/set.pl -storename Site -path &quot;/Stores/Store&quot; HasSSLCertificateUnity=&quot;1&quot;
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/set.pl -storename Site -path &quot;/Stores/Store&quot; UnityWebServerPort=&quot;80&quot;
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/set.pl -storename Site -path &quot;/Stores/Store&quot; UnitySSLWebServerPort=&quot;443&quot;
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/set.pl -storename Store -path / HasSSLCertificate=&quot;1&quot;  
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/set.pl -storename Store -path / UnityBaseURL=&quot;http://$MYHOSTNAME&quot;
+
+
+service epages6 start
+service epages6 start_java
+
+echo &quot;Step: Install languages: fr, es, ca, sv, ru&quot;
+. /etc/default/epages6
+STORE=Store
+cd $EPAGES_CARTRIDGES/DE_EPAGES/Installer/Scripts
+LANGUAGE=fr
+$PERL updateForLP.pl -storename $STORE -langpack $LANGUAGE
+$PERL importDBStrings.pl -storename $STORE -lang $LANGUAGE
+LANGUAGE=es
+$PERL updateForLP.pl -storename $STORE -langpack $LANGUAGE
+$PERL importDBStrings.pl -storename $STORE -lang $LANGUAGE
+LANGUAGE=ca
+$PERL updateForLP.pl -storename $STORE -langpack $LANGUAGE
+$PERL importDBStrings.pl -storename $STORE -lang $LANGUAGE
+LANGUAGE=sv
+$PERL updateForLP.pl -storename $STORE -langpack $LANGUAGE
+$PERL importDBStrings.pl -storename $STORE -lang $LANGUAGE
+LANGUAGE=ru
+$PERL updateForLP.pl -storename $STORE -langpack $LANGUAGE
+$PERL importDBStrings.pl -storename $STORE -lang $LANGUAGE
+
+
+export SHOPNAME=esf-test-$(date +%Y-%m-%d-%H-%M)
+echo &quot;Step: Create shops&quot;
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/ShopConfiguration/Scripts/createShop.pl -wsuser Providers/Distributor/Users/admin -passwd admin -shoptype UnityDE -storename Store -alias $SHOPNAME -scriptname $SHOPNAME
+export SHOPPATH=/Shops/$SHOPNAME
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/set.pl -storename Store -path $SHOPPATH MailFrom=p.domin@epages.com
+
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/ShopConfiguration/Scripts/createShop.pl -wsuser Providers/Distributor/Users/admin -passwd admin -shoptype UnityDE -storename Store -alias esf-test-dev -scriptname esf-test-dev
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/set.pl -storename Store -path /Shops/esf-test-dev MailFrom=p.domin@epages.com
+
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/ShopConfiguration/Scripts/createShop.pl -wsuser Providers/Distributor/Users/admin -passwd admin -shoptype UnityDE -storename Store -alias pipeline-dev -scriptname pipeline-dev
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/set.pl -storename Store -path /Shops/pipeline-dev MailFrom=p.domin@epages.com
+
+
+echo &quot;Step: Import web service client&quot;
+cd ~
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/import.pl -storename Store -path &quot;/&quot; ClientApplications.xml
+</command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers>
+    <hudson.plugins.emailext.ExtendedEmailPublisher plugin="email-ext@2.57.2">
+      <recipientList>p.domin@epages.com, mhoellein@epages.com</recipientList>
+      <configuredTriggers>
+        <hudson.plugins.emailext.plugins.trigger.UnstableTrigger>
+          <email>
+            <subject>$PROJECT_DEFAULT_SUBJECT</subject>
+            <body>$PROJECT_DEFAULT_CONTENT</body>
+            <recipientProviders>
+              <hudson.plugins.emailext.plugins.recipients.ListRecipientProvider/>
+            </recipientProviders>
+            <attachmentsPattern></attachmentsPattern>
+            <attachBuildLog>false</attachBuildLog>
+            <compressBuildLog>false</compressBuildLog>
+            <contentType>project</contentType>
+          </email>
+        </hudson.plugins.emailext.plugins.trigger.UnstableTrigger>
+        <hudson.plugins.emailext.plugins.trigger.StillFailingTrigger>
+          <email>
+            <subject>$PROJECT_DEFAULT_SUBJECT</subject>
+            <body>$PROJECT_DEFAULT_CONTENT</body>
+            <recipientProviders>
+              <hudson.plugins.emailext.plugins.recipients.ListRecipientProvider/>
+            </recipientProviders>
+            <attachmentsPattern></attachmentsPattern>
+            <attachBuildLog>false</attachBuildLog>
+            <compressBuildLog>false</compressBuildLog>
+            <contentType>project</contentType>
+          </email>
+        </hudson.plugins.emailext.plugins.trigger.StillFailingTrigger>
+        <hudson.plugins.emailext.plugins.trigger.StillUnstableTrigger>
+          <email>
+            <subject>$PROJECT_DEFAULT_SUBJECT</subject>
+            <body>$PROJECT_DEFAULT_CONTENT</body>
+            <recipientProviders>
+              <hudson.plugins.emailext.plugins.recipients.ListRecipientProvider/>
+            </recipientProviders>
+            <attachmentsPattern></attachmentsPattern>
+            <attachBuildLog>false</attachBuildLog>
+            <compressBuildLog>false</compressBuildLog>
+            <contentType>project</contentType>
+          </email>
+        </hudson.plugins.emailext.plugins.trigger.StillUnstableTrigger>
+        <hudson.plugins.emailext.plugins.trigger.FailureTrigger>
+          <email>
+            <subject>$PROJECT_DEFAULT_SUBJECT</subject>
+            <body>$PROJECT_DEFAULT_CONTENT</body>
+            <recipientProviders>
+              <hudson.plugins.emailext.plugins.recipients.ListRecipientProvider/>
+            </recipientProviders>
+            <attachmentsPattern></attachmentsPattern>
+            <attachBuildLog>false</attachBuildLog>
+            <compressBuildLog>false</compressBuildLog>
+            <contentType>project</contentType>
+          </email>
+        </hudson.plugins.emailext.plugins.trigger.FailureTrigger>
+      </configuredTriggers>
+      <contentType>text/plain</contentType>
+      <defaultSubject>[CI][${FILE, path=&quot;/tmp/cvs_branch&quot;}] ${PROJECT_NAME}: ${BUILD_STATUS}</defaultSubject>
+      <defaultContent>Node: ${ENV, var=&quot;NODE_NAME&quot;}
+Branch: ${FILE, path=&quot;/tmp/cvs_branch&quot;}
+Build: ${BUILD_NUMBER} - ${BUILD_URL}
+
+Build log:
+${BUILD_LOG, maxLines=100, escapeHtml=0}</defaultContent>
+      <attachmentsPattern></attachmentsPattern>
+      <presendScript></presendScript>
+      <postsendScript></postsendScript>
+      <attachBuildLog>false</attachBuildLog>
+      <compressBuildLog>false</compressBuildLog>
+      <replyTo></replyTo>
+      <saveOutput>false</saveOutput>
+      <disabled>false</disabled>
+    </hudson.plugins.emailext.ExtendedEmailPublisher>
+    <hudson.plugins.parameterizedtrigger.BuildTrigger plugin="parameterized-trigger@2.32">
+      <configs>
+        <hudson.plugins.parameterizedtrigger.BuildTriggerConfig>
+          <configs class="empty-list"/>
+          <projects>J81_Load_snapshot_for_J82</projects>
+          <condition>ALWAYS</condition>
+          <triggerWithNoParameters>true</triggerWithNoParameters>
+        </hudson.plugins.parameterizedtrigger.BuildTriggerConfig>
+      </configs>
+    </hudson.plugins.parameterizedtrigger.BuildTrigger>
+  </publishers>
+  <buildWrappers>
+    <hudson.plugins.timestamper.TimestamperBuildWrapper plugin="timestamper@1.8.8"/>
+  </buildWrappers>
+</project>

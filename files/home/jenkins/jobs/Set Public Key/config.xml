@@ -1,0 +1,78 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description>&lt;b&gt;This program updates a public key in git:epages-de/jenkins-rnd-pipeline/public-keys/.&lt;/b&gt;</description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <hudson.plugins.buildblocker.BuildBlockerProperty plugin="build-blocker-plugin@1.7.3">
+      <useBuildBlocker>false</useBuildBlocker>
+      <blockLevel>UNDEFINED</blockLevel>
+      <scanQueueFor>DISABLED</scanQueueFor>
+      <blockingJobs></blockingJobs>
+    </hudson.plugins.buildblocker.BuildBlockerProperty>
+    <jenkins.model.BuildDiscarderProperty>
+      <strategy class="hudson.tasks.LogRotator">
+        <daysToKeep>14</daysToKeep>
+        <numToKeep>-1</numToKeep>
+        <artifactDaysToKeep>-1</artifactDaysToKeep>
+        <artifactNumToKeep>-1</artifactNumToKeep>
+      </strategy>
+    </jenkins.model.BuildDiscarderProperty>
+    <com.dabsquared.gitlabjenkins.connection.GitLabConnectionProperty plugin="gitlab-plugin@1.4.3">
+      <gitLabConnection>https://am-git.intern.epages.de/</gitLabConnection>
+    </com.dabsquared.gitlabjenkins.connection.GitLabConnectionProperty>
+    <com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty plugin="naginator@1.17.2">
+      <optOut>false</optOut>
+    </com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty>
+    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.25">
+      <autoRebuild>false</autoRebuild>
+      <rebuildDisabled>false</rebuildDisabled>
+    </com.sonyericsson.rebuild.RebuildSettings>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>ACCOUNT</name>
+          <description>&lt;p&gt;ACCOUNT must be either e-mail or account with FQDN as e.g.:
+
+&lt;ul&gt;
+&lt;li&gt; &lt;b&gt;w.filss@epages.com&lt;/b&gt;
+&lt;li&gt; &lt;b&gt;root@ep-build-64.vm-intern.epages.com&lt;/b&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;ACCOUNT must only contain letters &lt;b&gt;A-Za-z0-9_-.@&lt;/b&gt;, everything else is forbidden.
+
+&lt;p&gt;ACCOUNT is &lt;b&gt;optional&lt;/b&gt;. If missing it is derived from PUBLIC_KEY, if PUBLIC_KEY&apos;s suffix contains e-mail/account like foo@bar.</description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>PUBLIC_KEY</name>
+          <description>&lt;p&gt;PUBLIC_KEY must start with identifier &lt;b&gt;ssh-rsa &lt;/b&gt;, &lt;b&gt;ssh-dss &lt;/b&gt;, &lt;b&gt;ssh-ed25519 &lt;/b&gt;, &lt;b&gt;ecdsa-sha2-nistp256 &lt;/b&gt;, &lt;b&gt;ecdsa-sha2-nistp384 &lt;/b&gt;, or &lt;b&gt;ecdsa-sha2-nistp521 &lt;/b&gt;.
+
+&lt;p&gt;PUBLIC_KEY must have the format: &lt;b&gt;IDENTIFIER KEY (NAME,) EMAIL (,DATE)&lt;/b&gt;</description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+    <de.pellepelster.jenkins.walldisplay.WallDisplayJobProperty plugin="jenkinswalldisplay@0.6.30"/>
+  </properties>
+  <scm class="hudson.scm.NullSCM"/>
+  <quietPeriod>0</quietPeriod>
+  <assignedNode>master</assignedNode>
+  <canRoam>false</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>true</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers/>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+~jenkins/jenkins-rnd-pipeline/scripts/put-public-key.sh -a &quot;$ACCOUNT&quot; -p &quot;$PUBLIC_KEY&quot; -A &quot;$BUILD_USER &lt;$BUILD_USER_EMAIL&gt;&quot;
+</command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers/>
+  <buildWrappers>
+    <org.jenkinsci.plugins.builduser.BuildUser plugin="build-user-vars-plugin@1.5"/>
+  </buildWrappers>
+</project>

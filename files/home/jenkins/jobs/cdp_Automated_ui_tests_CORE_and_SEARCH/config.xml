@@ -1,0 +1,268 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description></description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <jenkins.model.BuildDiscarderProperty>
+      <strategy class="hudson.tasks.LogRotator">
+        <daysToKeep>60</daysToKeep>
+        <numToKeep>-1</numToKeep>
+        <artifactDaysToKeep>-1</artifactDaysToKeep>
+        <artifactNumToKeep>-1</artifactNumToKeep>
+      </strategy>
+    </jenkins.model.BuildDiscarderProperty>
+    <hudson.plugins.buildblocker.BuildBlockerProperty plugin="build-blocker-plugin@1.7.3">
+      <useBuildBlocker>false</useBuildBlocker>
+      <blockLevel>UNDEFINED</blockLevel>
+      <scanQueueFor>DISABLED</scanQueueFor>
+      <blockingJobs></blockingJobs>
+    </hudson.plugins.buildblocker.BuildBlockerProperty>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>VERSION</name>
+          <description></description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>REPO</name>
+          <description></description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+    <com.dabsquared.gitlabjenkins.connection.GitLabConnectionProperty plugin="gitlab-plugin@1.4.3">
+      <gitLabConnection>https://am-git.intern.epages.de/</gitLabConnection>
+    </com.dabsquared.gitlabjenkins.connection.GitLabConnectionProperty>
+    <com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty plugin="naginator@1.17.2">
+      <optOut>false</optOut>
+    </com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty>
+    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.25">
+      <autoRebuild>false</autoRebuild>
+      <rebuildDisabled>false</rebuildDisabled>
+    </com.sonyericsson.rebuild.RebuildSettings>
+    <de.pellepelster.jenkins.walldisplay.WallDisplayJobProperty plugin="jenkinswalldisplay@0.6.30"/>
+    <EnvInjectJobProperty plugin="envinject@2.0">
+      <info>
+        <propertiesContent>TARGET_HOST=cd-vm-test-master-04.intern.epages.de
+
+ENV_OS=centos
+ENV_TYPE=install
+ENV_IDENTIFIER=singlehost
+</propertiesContent>
+        <loadFilesFromMaster>false</loadFilesFromMaster>
+      </info>
+      <on>true</on>
+      <keepJenkinsSystemVariables>true</keepJenkinsSystemVariables>
+      <keepBuildVariables>true</keepBuildVariables>
+      <overrideBuildParameters>false</overrideBuildParameters>
+      <contributors/>
+    </EnvInjectJobProperty>
+  </properties>
+  <scm class="hudson.scm.NullSCM"/>
+  <quietPeriod>0</quietPeriod>
+  <assignedNode>cd-test-master-04</assignedNode>
+  <canRoam>false</canRoam>
+  <disabled>true</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers/>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+
+# Deploy epages-infra repo.
+if [[ ! -d ~/epages-infra/.git ]] ; then
+    echo &apos;Deploying repo epages-infra...&apos;
+    cd ~
+    git clone git@github.com:ePages-de/epages-infra.git
+else
+    echo &apos;Updating master branch of repo epages-infra...&apos;
+    cd ~/epages-infra &amp;&amp; git pull origin master
+fi</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+
+export BUILD_ID=dontKillMe
+~/epages-infra/scripts/epages/jenkins-installs-epages.sh -i simple/install-epages-390MBx6.conf -r ftp://ftp.epages.com/pub/epages/build/repo/$VERSION/latest
+</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+
+export BUILD_ID=dontKillMe
+~/epages-infra/scripts/epages/util/enable_ssl.sh -s Site
+~/epages-infra/scripts/epages/util/enable_ssl.sh -s Store</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+
+echo &apos;We do not need running Schedulers during the UI test run.&apos;
+/etc/init.d/epages6 stop_cron</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+
+export BUILD_ID=dontKillMe
+SHOP_PREFIX=&apos;esf-auat&apos;
+echo &apos;We only test for browser compatibility and ignore the OS the browser is running on.&apos;
+for BROWSER in firefox ; do
+    for TEST_GROUP in CORE SEARCH ; do
+        SHOP_NAME=&quot;${SHOP_PREFIX}-${BROWSER}-${TEST_GROUP}&quot;
+        ~/epages-infra/scripts/epages/create_shop.sh -n ${SHOP_NAME} -t Demo -s Store
+        curl --insecure &quot;http://`hostname --fqdn`/epages/${SHOP_NAME}.sf&quot; &gt; /dev/null
+    done
+done
+
+SHOP_NAME=&quot;${SHOP_PREFIX}-${BROWSER}-ERPShop&quot;
+~/epages-infra/scripts/epages/create_shop.sh -n ${SHOP_NAME} -t ERPDemo -s Store
+curl --insecure &quot;http://`hostname --fqdn`/epages/${SHOP_NAME}.sf&quot; &gt; /dev/null
+
+SHOP_NAME=&quot;${SHOP_PREFIX}-${BROWSER}-eCMS&quot;
+~/epages-infra/scripts/epages/create_shop.sh -n ${SHOP_NAME} -t eCMSFree -s Store
+curl --insecure &quot;http://`hostname --fqdn`/epages/${SHOP_NAME}.sf&quot; &gt; /dev/null
+
+
+~/epages-infra/scripts/epages/update_search_index.sh -s Store
+
+</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+
+# Build properties files
+echo &quot;TARGET_DOMAIN=`hostname --fqdn`&quot; &gt; &quot;${WORKSPACE}/esferp.properties&quot;
+echo &quot;TESTGROUPS=ERPShop&quot; &gt;&gt; &quot;${WORKSPACE}/esferp.properties&quot;
+echo &quot;SKIPPRECONDITIONS=true&quot; &gt;&gt; &quot;${WORKSPACE}/esferp.properties&quot;
+echo &quot;SHOP=esf-auat-firefox-ERPShop&quot; &gt;&gt; &quot;${WORKSPACE}/esferp.properties&quot;
+echo &quot;ENV_OS=${ENV_OS}&quot; &gt;&gt; &quot;${WORKSPACE}/esferp.properties&quot;
+echo &quot;ENV_TYPE=${ENV_TYPE}&quot; &gt;&gt; &quot;${WORKSPACE}/esferp.properties&quot;
+echo &quot;ENV_IDENTIFIER=${ENV_IDENTIFIER}&quot; &gt;&gt; &quot;${WORKSPACE}/esferp.properties&quot;
+
+echo &quot;TARGET_DOMAIN=`hostname --fqdn`&quot; &gt; &quot;${WORKSPACE}/esfcore.properties&quot;
+echo &quot;TESTGROUPS=CORE&quot; &gt;&gt; &quot;${WORKSPACE}/esfcore.properties&quot;
+echo &quot;SHOP=esf-auat-firefox-CORE&quot; &gt;&gt; &quot;${WORKSPACE}/esfcore.properties&quot;
+echo &quot;ENV_OS=${ENV_OS}&quot; &gt;&gt; &quot;${WORKSPACE}/esfcore.properties&quot;
+echo &quot;ENV_TYPE=${ENV_TYPE}&quot; &gt;&gt; &quot;${WORKSPACE}/esfcore.properties&quot;
+echo &quot;ENV_IDENTIFIER=${ENV_IDENTIFIER}&quot; &gt;&gt; &quot;${WORKSPACE}/esfcore.properties&quot;
+
+echo &quot;TARGET_DOMAIN=`hostname --fqdn`&quot; &gt; &quot;${WORKSPACE}/esfsearch.properties&quot;
+echo &quot;TESTGROUPS=SEARCH&quot; &gt;&gt; &quot;${WORKSPACE}/esfsearch.properties&quot;
+echo &quot;SHOP=esf-auat-firefox-SEARCH&quot; &gt;&gt; &quot;${WORKSPACE}/esfsearch.properties&quot;
+echo &quot;ENV_OS=${ENV_OS}&quot; &gt;&gt; &quot;${WORKSPACE}/esfsearch.properties&quot;
+echo &quot;ENV_TYPE=${ENV_TYPE}&quot; &gt;&gt; &quot;${WORKSPACE}/esfsearch.properties&quot;
+echo &quot;ENV_IDENTIFIER=${ENV_IDENTIFIER}&quot; &gt;&gt; &quot;${WORKSPACE}/esfsearch.properties&quot;
+
+echo &quot;TARGET_DOMAIN=`hostname --fqdn`&quot; &gt; &quot;${WORKSPACE}/esfecms.properties&quot;
+echo &quot;TESTGROUPS=eCMS&quot; &gt;&gt; &quot;${WORKSPACE}/esfecms.properties&quot;
+echo &quot;SKIPPRECONDITIONS=true&quot; &gt;&gt; &quot;${WORKSPACE}/esfecms.properties&quot;
+echo &quot;SHOP=esf-auat-firefox-eCMS&quot; &gt;&gt; &quot;${WORKSPACE}/esfecms.properties&quot;
+echo &quot;ENV_OS=${ENV_OS}&quot; &gt;&gt; &quot;${WORKSPACE}/esfecms.properties&quot;
+echo &quot;ENV_TYPE=${ENV_TYPE}&quot; &gt;&gt; &quot;${WORKSPACE}/esfecms.properties&quot;
+echo &quot;ENV_IDENTIFIER=${ENV_IDENTIFIER}&quot; &gt;&gt; &quot;${WORKSPACE}/esfecms.properties&quot;</command>
+    </hudson.tasks.Shell>
+    <hudson.plugins.parameterizedtrigger.TriggerBuilder plugin="parameterized-trigger@2.32">
+      <configs>
+        <hudson.plugins.parameterizedtrigger.BlockableBuildTriggerConfig>
+          <configs>
+            <hudson.plugins.parameterizedtrigger.CurrentBuildParameters/>
+          </configs>
+          <configFactories>
+            <hudson.plugins.parameterizedtrigger.FileBuildParameterFactory>
+              <filePattern>*.properties</filePattern>
+              <noFilesFoundAction>FAIL</noFilesFoundAction>
+            </hudson.plugins.parameterizedtrigger.FileBuildParameterFactory>
+          </configFactories>
+          <projects>Run_ESF_tests</projects>
+          <condition>ALWAYS</condition>
+          <triggerWithNoParameters>false</triggerWithNoParameters>
+          <block>
+            <buildStepFailureThreshold>
+              <name>FAILURE</name>
+              <ordinal>2</ordinal>
+              <color>RED</color>
+              <completeBuild>true</completeBuild>
+            </buildStepFailureThreshold>
+            <unstableThreshold>
+              <name>UNSTABLE</name>
+              <ordinal>1</ordinal>
+              <color>YELLOW</color>
+              <completeBuild>true</completeBuild>
+            </unstableThreshold>
+            <failureThreshold>
+              <name>FAILURE</name>
+              <ordinal>2</ordinal>
+              <color>RED</color>
+              <completeBuild>true</completeBuild>
+            </failureThreshold>
+          </block>
+          <buildAllNodesWithLabel>false</buildAllNodesWithLabel>
+        </hudson.plugins.parameterizedtrigger.BlockableBuildTriggerConfig>
+      </configs>
+    </hudson.plugins.parameterizedtrigger.TriggerBuilder>
+    <hudson.tasks.Shell>
+      <command>export BUILD_ID=dontKillMe
+~/epages-infra/scripts/epages/util/print-app-server-restarts.sh</command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers>
+    <hudson.tasks.ArtifactArchiver>
+      <artifacts>*.log</artifacts>
+      <allowEmptyArchive>true</allowEmptyArchive>
+      <onlyIfSuccessful>false</onlyIfSuccessful>
+      <fingerprint>false</fingerprint>
+      <defaultExcludes>true</defaultExcludes>
+      <caseSensitive>true</caseSensitive>
+    </hudson.tasks.ArtifactArchiver>
+    <hudson.plugins.jabber.im.transport.JabberPublisher plugin="jabber@1.35">
+      <targets>
+        <hudson.plugins.im.GroupChatIMMessageTarget plugin="instant-messaging@1.35">
+          <name>cdp@conference.epages.de</name>
+          <notificationOnly>false</notificationOnly>
+        </hudson.plugins.im.GroupChatIMMessageTarget>
+      </targets>
+      <strategy>FAILURE_AND_FIXED</strategy>
+      <notifyOnBuildStart>false</notifyOnBuildStart>
+      <notifySuspects>false</notifySuspects>
+      <notifyCulprits>false</notifyCulprits>
+      <notifyFixers>false</notifyFixers>
+      <notifyUpstreamCommitters>true</notifyUpstreamCommitters>
+      <buildToChatNotifier class="hudson.plugins.im.build_notify.SummaryOnlyBuildToChatNotifier" plugin="instant-messaging@1.35"/>
+      <matrixMultiplier>ONLY_CONFIGURATIONS</matrixMultiplier>
+    </hudson.plugins.jabber.im.transport.JabberPublisher>
+    <com.chikli.hudson.plugin.naginator.NaginatorPublisher plugin="naginator@1.17.2">
+      <regexpForRerun>(java.io.IOException|java.lang.NullPointerException)</regexpForRerun>
+      <rerunIfUnstable>true</rerunIfUnstable>
+      <rerunMatrixPart>false</rerunMatrixPart>
+      <checkRegexp>true</checkRegexp>
+      <regexpForMatrixStrategy>TestParent</regexpForMatrixStrategy>
+      <delay class="com.chikli.hudson.plugin.naginator.FixedDelay">
+        <delay>180</delay>
+      </delay>
+      <maxSchedule>1</maxSchedule>
+    </com.chikli.hudson.plugin.naginator.NaginatorPublisher>
+    <hudson.plugins.parameterizedtrigger.BuildTrigger plugin="parameterized-trigger@2.32">
+      <configs>
+        <hudson.plugins.parameterizedtrigger.BuildTriggerConfig>
+          <configs>
+            <hudson.plugins.parameterizedtrigger.PredefinedBuildParameters>
+              <properties>VIRTUAL_MACHINE=cd-vm-test-master-04</properties>
+            </hudson.plugins.parameterizedtrigger.PredefinedBuildParameters>
+          </configs>
+          <projects>cdp_Shut_down_virtual_machine</projects>
+          <condition>SUCCESS</condition>
+          <triggerWithNoParameters>false</triggerWithNoParameters>
+        </hudson.plugins.parameterizedtrigger.BuildTriggerConfig>
+      </configs>
+    </hudson.plugins.parameterizedtrigger.BuildTrigger>
+  </publishers>
+  <buildWrappers>
+    <hudson.plugins.ansicolor.AnsiColorBuildWrapper plugin="ansicolor@0.4.2">
+      <colorMapName>xterm</colorMapName>
+    </hudson.plugins.ansicolor.AnsiColorBuildWrapper>
+    <hudson.plugins.timestamper.TimestamperBuildWrapper plugin="timestamper@1.8.4"/>
+  </buildWrappers>
+</project>

@@ -1,0 +1,155 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description>Prepares the execution of the ESF tests. This includes unpacking of the latest stable ESF package&#xd;
+as well as the deletion of utility files.&#xd;
+&#xd;
+Further it is necessary to run all the tests once in one single process because otherwise there will be problems due to an empty line item table.</description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <jenkins.model.BuildDiscarderProperty>
+      <strategy class="hudson.tasks.LogRotator">
+        <daysToKeep>60</daysToKeep>
+        <numToKeep>-1</numToKeep>
+        <artifactDaysToKeep>-1</artifactDaysToKeep>
+        <artifactNumToKeep>-1</artifactNumToKeep>
+      </strategy>
+    </jenkins.model.BuildDiscarderProperty>
+    <hudson.plugins.buildblocker.BuildBlockerProperty plugin="build-blocker-plugin@1.7.3">
+      <useBuildBlocker>false</useBuildBlocker>
+      <blockLevel>UNDEFINED</blockLevel>
+      <scanQueueFor>DISABLED</scanQueueFor>
+      <blockingJobs></blockingJobs>
+    </hudson.plugins.buildblocker.BuildBlockerProperty>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>TARGET_DOMAIN</name>
+          <description></description>
+          <defaultValue>cd-vm-test-patch-006.intern.epages.de</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>SHOP</name>
+          <description></description>
+          <defaultValue>zdt-shop-mbo-01</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>TESTGROUPS</name>
+          <description></description>
+          <defaultValue>ZDT-SF-1,ZDT-SF-2,ZDT-MBO</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>VERSION</name>
+          <description></description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>REPO</name>
+          <description></description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+    <com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty plugin="naginator@1.17.2">
+      <optOut>false</optOut>
+    </com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty>
+    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.25">
+      <autoRebuild>false</autoRebuild>
+      <rebuildDisabled>false</rebuildDisabled>
+    </com.sonyericsson.rebuild.RebuildSettings>
+    <de.pellepelster.jenkins.walldisplay.WallDisplayJobProperty plugin="jenkinswalldisplay@0.6.30"/>
+  </properties>
+  <scm class="hudson.plugins.git.GitSCM" plugin="git@2.5.3">
+    <configVersion>2</configVersion>
+    <userRemoteConfigs>
+      <hudson.plugins.git.UserRemoteConfig>
+        <url>git@github.com:ePages-de/to-logstash.git</url>
+        <credentialsId>c24e751f-8d24-4c11-b02e-a6428c3f88b7</credentialsId>
+      </hudson.plugins.git.UserRemoteConfig>
+    </userRemoteConfigs>
+    <branches>
+      <hudson.plugins.git.BranchSpec>
+        <name>*/master</name>
+      </hudson.plugins.git.BranchSpec>
+    </branches>
+    <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+    <submoduleCfg class="list"/>
+    <extensions/>
+  </scm>
+  <quietPeriod>0</quietPeriod>
+  <assignedNode>esf_docker</assignedNode>
+  <canRoam>false</canRoam>
+  <disabled>true</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers/>
+  <concurrentBuild>true</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+
+# Call Puppet Agent first
+sudo puppet agent --test
+if [[ $? -eq 0 || $? -eq 2 ]] ; then
+    exit 0
+else
+    exit 1
+fi</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+
+if [[ -d /tmp/esf ]] ; then rm -Rf /tmp/esf ; fi
+if [[ -f /tmp/cdp-zdt-patch-test.lock ]] ; then rm -f /tmp/cdp-zdt-patch-test.lock ; fi
+if [[ -f /tmp/esf-report.csv ]] ; then rm -f /tmp/esf-report.csv ; fi</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+
+# pull latest esf image
+set +x; docker login -u ${DOCKER_USERNAME} -p &quot;${DOCKER_PASSWORD}&quot; -e teamorange@epages.com; set -x
+docker pull epages/esf:latest
+
+# Make sure the setup wizard has been completed on *every* zdt shop.
+for ZDT_SHOP in zdt-shop-mbo-01 zdt-shop-sf-01 zdt-shop-sf-02 zdt-shop-sf-03 ; do
+    echo &quot;docker run --rm --user=root -v ${WORKSPACE}/esf/log:/home/esf/esf/log -t epages/esf:latest -browser firefox -tc com.epages.cartridges.de_epages.shop.tests.LanguageTest -shop ${ZDT_SHOP} -email m.mustermann@epages.com -url http://${TARGET_DOMAIN}/epages&quot;
+	docker run --rm --user=root -v ${WORKSPACE}/esf/log:/home/esf/esf/log -t epages/esf:latest -browser firefox -tc com.epages.cartridges.de_epages.shop.tests.LanguageTest -shop ${ZDT_SHOP} -email m.mustermann@epages.com -url http://${TARGET_DOMAIN}/epages
+done
+
+# Run all of our ZDT tests once.
+echo &quot;docker run --rm --user=root -v ${WORKSPACE}/esf/log:/home/esf/esf/log -t epages/esf:latest -browser firefox -groups ${TESTGROUPS}-shop ${SHOP} -url &quot;http://${TARGET_DOMAIN}/epages&quot; -email m.mustermann@epages.com --retry&quot;
+docker run --rm --user=root -v ${WORKSPACE}/esf/log:/home/esf/esf/log -t epages/esf:latest -browser firefox -groups &quot;${TESTGROUPS}&quot; -shop ${SHOP} -url &quot;http://${TARGET_DOMAIN}/epages&quot; -email m.mustermann@epages.com --retry
+
+</command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers>
+    <hudson.plugins.parameterizedtrigger.BuildTrigger plugin="parameterized-trigger@2.32">
+      <configs>
+        <hudson.plugins.parameterizedtrigger.BuildTriggerConfig>
+          <configs>
+            <hudson.plugins.parameterizedtrigger.CurrentBuildParameters/>
+          </configs>
+          <projects>cdp_ZDT_Run_multi-configuration_ESF_tests_in_loop,cdp_ZDT_Patch_test_single_host_on_Debian</projects>
+          <condition>SUCCESS</condition>
+          <triggerWithNoParameters>false</triggerWithNoParameters>
+        </hudson.plugins.parameterizedtrigger.BuildTriggerConfig>
+      </configs>
+    </hudson.plugins.parameterizedtrigger.BuildTrigger>
+  </publishers>
+  <buildWrappers>
+    <hudson.plugins.ansicolor.AnsiColorBuildWrapper plugin="ansicolor@0.4.2">
+      <colorMapName>xterm</colorMapName>
+    </hudson.plugins.ansicolor.AnsiColorBuildWrapper>
+    <org.jenkinsci.plugins.credentialsbinding.impl.SecretBuildWrapper plugin="credentials-binding@1.11">
+      <bindings>
+        <org.jenkinsci.plugins.credentialsbinding.impl.UsernamePasswordMultiBinding>
+          <credentialsId>5d80ffaa-b0af-4369-9b79-1b35557587d1</credentialsId>
+          <usernameVariable>DOCKER_USERNAME</usernameVariable>
+          <passwordVariable>DOCKER_PASSWORD</passwordVariable>
+        </org.jenkinsci.plugins.credentialsbinding.impl.UsernamePasswordMultiBinding>
+      </bindings>
+    </org.jenkinsci.plugins.credentialsbinding.impl.SecretBuildWrapper>
+    <hudson.plugins.timestamper.TimestamperBuildWrapper plugin="timestamper@1.8.4"/>
+  </buildWrappers>
+</project>

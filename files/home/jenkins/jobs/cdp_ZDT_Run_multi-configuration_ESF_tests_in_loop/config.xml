@@ -1,0 +1,185 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<matrix-project plugin="matrix-project@1.7.1">
+  <actions/>
+  <description></description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <jenkins.model.BuildDiscarderProperty>
+      <strategy class="hudson.tasks.LogRotator">
+        <daysToKeep>60</daysToKeep>
+        <numToKeep>-1</numToKeep>
+        <artifactDaysToKeep>-1</artifactDaysToKeep>
+        <artifactNumToKeep>-1</artifactNumToKeep>
+      </strategy>
+    </jenkins.model.BuildDiscarderProperty>
+    <hudson.plugins.buildblocker.BuildBlockerProperty plugin="build-blocker-plugin@1.7.3">
+      <useBuildBlocker>false</useBuildBlocker>
+      <blockLevel>UNDEFINED</blockLevel>
+      <scanQueueFor>DISABLED</scanQueueFor>
+      <blockingJobs></blockingJobs>
+    </hudson.plugins.buildblocker.BuildBlockerProperty>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>TARGET_DOMAIN</name>
+          <description>e.g. unstable-main.epages.com</description>
+          <defaultValue>cd-vm-test-patch-006.intern.epages.de</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>SITE_URL</name>
+          <description></description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>VERSION</name>
+          <description></description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>REPO</name>
+          <description></description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+    <com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty plugin="naginator@1.17.2">
+      <optOut>false</optOut>
+    </com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty>
+    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.25">
+      <autoRebuild>false</autoRebuild>
+      <rebuildDisabled>false</rebuildDisabled>
+    </com.sonyericsson.rebuild.RebuildSettings>
+    <de.pellepelster.jenkins.walldisplay.WallDisplayJobProperty plugin="jenkinswalldisplay@0.6.30"/>
+    <EnvInjectJobProperty plugin="envinject@1.92.1">
+      <info>
+        <propertiesContent>ENV_OS=debian
+ENV_TYPE=patch
+ENV_IDENTIFIER=zdt
+</propertiesContent>
+        <loadFilesFromMaster>false</loadFilesFromMaster>
+      </info>
+      <on>true</on>
+      <keepJenkinsSystemVariables>true</keepJenkinsSystemVariables>
+      <keepBuildVariables>true</keepBuildVariables>
+      <overrideBuildParameters>false</overrideBuildParameters>
+      <contributors/>
+    </EnvInjectJobProperty>
+  </properties>
+  <scm class="hudson.scm.NullSCM"/>
+  <quietPeriod>0</quietPeriod>
+  <assignedNode>ci-vm-ui-test-007</assignedNode>
+  <canRoam>false</canRoam>
+  <disabled>true</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers/>
+  <concurrentBuild>true</concurrentBuild>
+  <axes>
+    <hudson.matrix.TextAxis>
+      <name>TESTGROUP</name>
+      <values>
+        <string>ZDT-SF-1</string>
+        <string>ZDT-SF-1</string>
+        <string>ZDT-SF-2</string>
+        <string>ZDT-MBO</string>
+      </values>
+    </hudson.matrix.TextAxis>
+    <hudson.matrix.TextAxis>
+      <name>SHOP</name>
+      <values>
+        <string>zdt-shop-mbo-01</string>
+        <string>zdt-shop-sf-01</string>
+        <string>zdt-shop-sf-02</string>
+        <string>zdt-shop-sf-03</string>
+      </values>
+    </hudson.matrix.TextAxis>
+    <hudson.matrix.LabelAxis>
+      <name>esf_docker</name>
+      <values>
+        <string>esf_docker</string>
+      </values>
+    </hudson.matrix.LabelAxis>
+  </axes>
+  <combinationFilter>(TESTGROUP==&quot;ZDT-MBO&quot; &amp;&amp; SHOP==&quot;zdt-shop-mbo-01&quot;) || (TESTGROUP==&quot;ZDT-SF-1&quot; &amp;&amp; SHOP==&quot;zdt-shop-sf-01&quot;) || (TESTGROUP==&quot;ZDT-SF-1&quot; &amp;&amp; SHOP==&quot;zdt-shop-sf-02&quot;) || (TESTGROUP==&quot;ZDT-SF-2&quot; &amp;&amp; SHOP==&quot;zdt-shop-sf-03&quot;)</combinationFilter>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+
+#JOB_ROOT_DIR=&apos;/tmp/esf&apos;
+#cd &quot;${JOB_ROOT_DIR}&quot; || exit 1
+#ESF_ZIP_FILE=&quot;`find . -name &quot;esf-*.zip&quot; -type f | sort -r | head -n1`&quot;
+#ESF_STRING=&quot;`echo ${ESF_ZIP_FILE} | sed -e &apos;s/.zip//&apos;`&quot;
+ESF_REPORT_FILE=&apos;/tmp/esf-report.csv&apos;
+ESF_REPORT_JSON=&apos;/tmp/esf-report.json&apos;
+#cd &quot;${ESF_STRING}&quot; || exit 1
+ERRORS_OCCURED=
+i=&quot;0&quot;
+while [[ $i -lt 10 ]] ; do
+	if [[ -f /tmp/cdp-zdt-patch-test.lock ]] ; then
+    	echo &apos;Patch test has ended. Exiting while-loop now.&apos;
+        i=$[$i+1]
+     	break
+	fi
+	set +x; docker login -u ${DOCKER_USERNAME} -p &quot;${DOCKER_PASSWORD}&quot; -e teamorange@epages.com; set -x
+	docker pull epages/esf:latest
+    echo &quot;docker run --rm --user=root -v ${WORKSPACE}/esf/log:/home/esf/esf/log -t epages/esf:latest -ap 0 -browser firefox -groups ${TESTGROUP} -shop ${SHOP} -url http://${TARGET_DOMAIN}/epages -email m.mustermann@epages.com --csv-report ${ESF_REPORT_FILE}&quot;
+	docker run --rm --user=root -v ${WORKSPACE}/esf/log:/home/esf/esf/log -t epages/esf:latest -ap 0 -browser firefox -groups ${TESTGROUP} -shop ${SHOP} -url http://${TARGET_DOMAIN}/epages -email m.mustermann@epages.com --csv-report &quot;${ESF_REPORT_FILE}&quot;        
+    if [[ $? -ne 0 ]] ; then
+		ERRORS_OCCURED=&apos;yes&apos;
+	fi
+done
+
+# Write properties file for Archive-Job.
+echo &quot;ESF_DIR=${JOB_ROOT_DIR}/`basename ${ESF_STRING}`&quot; &gt; /tmp/cdp-zdt-esf-tests.properties
+echo &quot;ESF_REPORT_FILE=${ESF_REPORT_FILE}&quot; &gt;&gt; /tmp/cdp-zdt-esf-tests.properties
+
+# For pushing ESF test results to Elasticsearch.
+echo &quot;ENV_OS=${ENV_OS}&quot; &gt;&gt; /tmp/cdp-zdt-esf-tests.properties
+echo &quot;ENV_TYPE=${ENV_TYPE}&quot; &gt;&gt; /tmp/cdp-zdt-esf-tests.properties
+echo &quot;ENV_IDENTIFIER=${ENV_IDENTIFIER}&quot; &gt;&gt; /tmp/cdp-zdt-esf-tests.properties
+
+if [[ &quot;${ERRORS_OCCURED}&quot; == &apos;yes&apos; ]]; then
+    echo &quot;One or more ESF tests failed or have been skipped.&quot;;
+    exit 1;
+fi</command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers>
+    <hudson.plugins.parameterizedtrigger.BuildTrigger plugin="parameterized-trigger@2.32">
+      <configs>
+        <hudson.plugins.parameterizedtrigger.BuildTriggerConfig>
+          <configs>
+            <hudson.plugins.parameterizedtrigger.CurrentBuildParameters/>
+            <hudson.plugins.parameterizedtrigger.FileBuildParameters>
+              <propertiesFile>/tmp/cdp-zdt-esf-tests.properties</propertiesFile>
+              <failTriggerOnMissing>true</failTriggerOnMissing>
+              <useMatrixChild>false</useMatrixChild>
+              <onlyExactRuns>false</onlyExactRuns>
+            </hudson.plugins.parameterizedtrigger.FileBuildParameters>
+          </configs>
+          <projects>cdp_ZDT_Archive_ESF_logs</projects>
+          <condition>ALWAYS</condition>
+          <triggerWithNoParameters>false</triggerWithNoParameters>
+        </hudson.plugins.parameterizedtrigger.BuildTriggerConfig>
+      </configs>
+    </hudson.plugins.parameterizedtrigger.BuildTrigger>
+  </publishers>
+  <buildWrappers>
+    <hudson.plugins.ansicolor.AnsiColorBuildWrapper plugin="ansicolor@0.4.2">
+      <colorMapName>xterm</colorMapName>
+    </hudson.plugins.ansicolor.AnsiColorBuildWrapper>
+    <org.jenkinsci.plugins.credentialsbinding.impl.SecretBuildWrapper plugin="credentials-binding@1.9">
+      <bindings>
+        <org.jenkinsci.plugins.credentialsbinding.impl.UsernamePasswordMultiBinding>
+          <credentialsId>5d80ffaa-b0af-4369-9b79-1b35557587d1</credentialsId>
+          <usernameVariable>DOCKER_USERNAME</usernameVariable>
+          <passwordVariable>DOCKER_PASSWORD</passwordVariable>
+        </org.jenkinsci.plugins.credentialsbinding.impl.UsernamePasswordMultiBinding>
+      </bindings>
+    </org.jenkinsci.plugins.credentialsbinding.impl.SecretBuildWrapper>
+    <hudson.plugins.timestamper.TimestamperBuildWrapper plugin="timestamper@1.8.4"/>
+  </buildWrappers>
+  <executionStrategy class="hudson.matrix.DefaultMatrixExecutionStrategyImpl">
+    <runSequentially>false</runSequentially>
+  </executionStrategy>
+</matrix-project>

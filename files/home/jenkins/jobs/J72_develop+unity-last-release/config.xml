@@ -1,0 +1,245 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description>Head + Unity- latest release on an intern machine: ep6unity1.vm-intern.epages,com&#xd;
+&lt;ul&gt;&#xd;
+  &lt;li&gt;ep6 develop&lt;/li&gt;&#xd;
+  &lt;li&gt;unity-ui:0.20.0&lt;/li&gt;&#xd;
+  &lt;li&gt;storage: 0.8.0&lt;/li&gt;&#xd;
+&lt;/ul&gt;&#xd;
+&#xd;
+</description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <jenkins.model.BuildDiscarderProperty>
+      <strategy class="hudson.tasks.LogRotator">
+        <daysToKeep>-1</daysToKeep>
+        <numToKeep>10</numToKeep>
+        <artifactDaysToKeep>-1</artifactDaysToKeep>
+        <artifactNumToKeep>-1</artifactNumToKeep>
+      </strategy>
+    </jenkins.model.BuildDiscarderProperty>
+    <hudson.plugins.buildblocker.BuildBlockerProperty plugin="build-blocker-plugin@1.7.3">
+      <useBuildBlocker>false</useBuildBlocker>
+      <blockLevel>UNDEFINED</blockLevel>
+      <scanQueueFor>DISABLED</scanQueueFor>
+      <blockingJobs></blockingJobs>
+    </hudson.plugins.buildblocker.BuildBlockerProperty>
+    <com.dabsquared.gitlabjenkins.connection.GitLabConnectionProperty plugin="gitlab-plugin@1.4.3">
+      <gitLabConnection>https://am-git.intern.epages.de/</gitLabConnection>
+    </com.dabsquared.gitlabjenkins.connection.GitLabConnectionProperty>
+    <com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty plugin="naginator@1.17.2">
+      <optOut>false</optOut>
+    </com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty>
+    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.25">
+      <autoRebuild>false</autoRebuild>
+      <rebuildDisabled>false</rebuildDisabled>
+    </com.sonyericsson.rebuild.RebuildSettings>
+    <de.pellepelster.jenkins.walldisplay.WallDisplayJobProperty plugin="jenkinswalldisplay@0.6.30"/>
+  </properties>
+  <scm class="hudson.plugins.git.GitSCM" plugin="git@2.5.3">
+    <configVersion>2</configVersion>
+    <userRemoteConfigs>
+      <hudson.plugins.git.UserRemoteConfig>
+        <url>git@github.com:ePages-de/Cartridges.git</url>
+        <credentialsId>596d6633-1bb8-4ba9-9a9d-b4c652127182</credentialsId>
+      </hudson.plugins.git.UserRemoteConfig>
+    </userRemoteConfigs>
+    <branches>
+      <hudson.plugins.git.BranchSpec>
+        <name>*/develop</name>
+      </hudson.plugins.git.BranchSpec>
+    </branches>
+    <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+    <submoduleCfg class="list"/>
+    <extensions/>
+  </scm>
+  <quietPeriod>0</quietPeriod>
+  <assignedNode>ep6unity1.vm-intern.epages.com</assignedNode>
+  <canRoam>false</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers/>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>export BUILD_ID=dontKillMe
+
+
+echo &quot;Start docker&quot;
+service docker start
+docker stop $(docker ps -a -q)
+# Delete all containers
+docker rm $(docker ps -a -q)
+# Delete all images
+docker rmi $(docker images -q)
+service docker start
+docker-compose up -d
+</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>export BUILD_ID=dontKillMe
+export VERSION=`~/epages-infra/scripts/epages/util/get_version_number_from_makefile.sh -f &quot;${WORKSPACE}/DE_EPAGES/Makefile.PL&quot;`
+echo &quot;Version detected: &quot; ${VERSION}
+#export VERSION=6.17.48
+export REPO=&quot;${VERSION}/latest&quot;
+
+cd ~/epages-infra
+git pull origin master
+~/epages-infra/scripts/epages/install_epages.sh -r &quot;${REPO}&quot;
+echo &quot;teamepages6: Install base done&quot;
+
+export BUILD_ID=dontKillMe
+/var/epages/install-additional-cartridges.sh -c ~/epages-infra/configuration/install-epages/simple/install-epages.conf
+echo &quot;teamepages6: Install additional cartridges done&quot;
+
+</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+
+sed -i &quot;s/^HTTPD_OPTS=.*/HTTPD_OPTS=&apos;-DSSL -DVHOSTS_NAME -DUNITY_VHOST&apos;/&quot; /etc/default/epages6
+. /etc/default/epages6
+
+
+echo &quot;Step: Set up 4 app server&quot;
+~/epages-infra/scripts/epages/configure_app_servers.sh -m 500 -n 4
+service epages6 start
+service epages6 start_java
+
+</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>echo &quot;Step: Set up TBO&quot;
+. /etc/default/epages6
+
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/set.pl -storename Site -path &quot;/Stores/Store&quot; UnityUrlScheme=&quot;$(hostname --fqdn)&quot;
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/set.pl -storename Site -path &quot;/Stores/Store&quot; UnityApiUrlScheme=&quot;api.$(hostname --fqdn)/api/v2&quot;
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/set.pl -storename Site -path &quot;/Stores/Store&quot; UnityUseSubdomainRouting=&quot;1&quot;
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/set.pl -storename Site -path &quot;/Stores/Store&quot; HasSSLCertificateUnity=&quot;1&quot;
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/set.pl -storename Site -path &quot;/Stores/Store&quot; UnityWebServerPort=&quot;80&quot;
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/set.pl -storename Site -path &quot;/Stores/Store&quot; UnitySSLWebServerPort=&quot;443&quot;
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/set.pl -storename Store -path / HasSSLCertificate=&quot;1&quot;  UnityBaseURL=&quot;http://$(hostname --fqdn)&quot;
+
+/var/epages/ini-config.sh -i -f $EPAGES_CONFIG/Database.d/Store.conf -k jwtsecret -v &apos;this-is-super-secret---not&apos;
+
+</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+echo &quot;Step: load docker container&quot;
+
+#enable emails
+echo &apos;127.0.0.1   mail&apos; &gt;&gt; /etc/hosts
+
+echo restart services
+service epages6 start
+service epages6 start_java
+date
+. /etc/default/epages6
+
+
+echo &quot;Step: Create shop&quot;
+echo &quot;EPAGES_CARTRIDGES: &quot; $EPAGES_CARTRIDGES
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/ShopConfiguration/Scripts/createShop.pl -wsuser Providers/Distributor/Users/admin -passwd admin -shoptype UnityDE -storename Store -alias testshopunity -scriptname testshopunity
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/set.pl -storename Store -path &quot;/Shops/testshopunity&quot; MailFrom=p.domin@epages.com
+
+$PERL /srv/epages/eproot/Cartridges/DE_EPAGES/ShopConfiguration/Scripts/createShop.pl -wsuser Providers/Distributor/Users/admin -passwd admin -shoptype UnityDE -storename Store -alias esf-test -scriptname esf-test
+$PERL /srv/epages/eproot/Cartridges/DE_EPAGES/Object/Scripts/set.pl -storename Store -path &quot;/Shops/esf-test&quot; MailFrom=p.domin@epages.com
+
+service epages6 start
+service epages6 start_java</command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers>
+    <hudson.plugins.emailext.ExtendedEmailPublisher plugin="email-ext@2.47">
+      <recipientList>p.domin@epages.com</recipientList>
+      <configuredTriggers>
+        <hudson.plugins.emailext.plugins.trigger.UnstableTrigger>
+          <email>
+            <subject>$PROJECT_DEFAULT_SUBJECT</subject>
+            <body>$PROJECT_DEFAULT_CONTENT</body>
+            <recipientProviders>
+              <hudson.plugins.emailext.plugins.recipients.ListRecipientProvider/>
+            </recipientProviders>
+            <attachmentsPattern></attachmentsPattern>
+            <attachBuildLog>false</attachBuildLog>
+            <compressBuildLog>false</compressBuildLog>
+            <contentType>project</contentType>
+          </email>
+        </hudson.plugins.emailext.plugins.trigger.UnstableTrigger>
+        <hudson.plugins.emailext.plugins.trigger.StillFailingTrigger>
+          <email>
+            <subject>$PROJECT_DEFAULT_SUBJECT</subject>
+            <body>$PROJECT_DEFAULT_CONTENT</body>
+            <recipientProviders>
+              <hudson.plugins.emailext.plugins.recipients.ListRecipientProvider/>
+            </recipientProviders>
+            <attachmentsPattern></attachmentsPattern>
+            <attachBuildLog>false</attachBuildLog>
+            <compressBuildLog>false</compressBuildLog>
+            <contentType>project</contentType>
+          </email>
+        </hudson.plugins.emailext.plugins.trigger.StillFailingTrigger>
+        <hudson.plugins.emailext.plugins.trigger.StillUnstableTrigger>
+          <email>
+            <subject>$PROJECT_DEFAULT_SUBJECT</subject>
+            <body>$PROJECT_DEFAULT_CONTENT</body>
+            <recipientProviders>
+              <hudson.plugins.emailext.plugins.recipients.ListRecipientProvider/>
+            </recipientProviders>
+            <attachmentsPattern></attachmentsPattern>
+            <attachBuildLog>false</attachBuildLog>
+            <compressBuildLog>false</compressBuildLog>
+            <contentType>project</contentType>
+          </email>
+        </hudson.plugins.emailext.plugins.trigger.StillUnstableTrigger>
+        <hudson.plugins.emailext.plugins.trigger.FailureTrigger>
+          <email>
+            <subject>$PROJECT_DEFAULT_SUBJECT</subject>
+            <body>$PROJECT_DEFAULT_CONTENT</body>
+            <recipientProviders>
+              <hudson.plugins.emailext.plugins.recipients.ListRecipientProvider/>
+            </recipientProviders>
+            <attachmentsPattern></attachmentsPattern>
+            <attachBuildLog>false</attachBuildLog>
+            <compressBuildLog>false</compressBuildLog>
+            <contentType>project</contentType>
+          </email>
+        </hudson.plugins.emailext.plugins.trigger.FailureTrigger>
+      </configuredTriggers>
+      <contentType>text/plain</contentType>
+      <defaultSubject>[CI][${FILE, path=&quot;/tmp/cvs_branch&quot;}] ${PROJECT_NAME}: ${BUILD_STATUS}</defaultSubject>
+      <defaultContent>Node: ${ENV, var=&quot;NODE_NAME&quot;}
+Branch: ${FILE, path=&quot;/tmp/cvs_branch&quot;}
+Build: ${BUILD_NUMBER} - ${BUILD_URL}
+
+Build log:
+${BUILD_LOG, maxLines=100, escapeHtml=0}</defaultContent>
+      <attachmentsPattern></attachmentsPattern>
+      <presendScript></presendScript>
+      <postsendScript></postsendScript>
+      <attachBuildLog>false</attachBuildLog>
+      <compressBuildLog>false</compressBuildLog>
+      <replyTo></replyTo>
+      <saveOutput>false</saveOutput>
+      <disabled>false</disabled>
+    </hudson.plugins.emailext.ExtendedEmailPublisher>
+    <com.chikli.hudson.plugin.naginator.NaginatorPublisher plugin="naginator@1.17.2">
+      <regexpForRerun>java.io.IOException</regexpForRerun>
+      <rerunIfUnstable>true</rerunIfUnstable>
+      <rerunMatrixPart>false</rerunMatrixPart>
+      <checkRegexp>true</checkRegexp>
+      <regexpForMatrixStrategy>TestParent</regexpForMatrixStrategy>
+      <delay class="com.chikli.hudson.plugin.naginator.ProgressiveDelay">
+        <increment>300</increment>
+        <max>10800</max>
+      </delay>
+      <maxSchedule>0</maxSchedule>
+    </com.chikli.hudson.plugin.naginator.NaginatorPublisher>
+  </publishers>
+  <buildWrappers>
+    <hudson.plugins.timestamper.TimestamperBuildWrapper plugin="timestamper@1.8.4"/>
+  </buildWrappers>
+</project>

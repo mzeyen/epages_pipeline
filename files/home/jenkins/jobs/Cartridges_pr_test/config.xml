@@ -1,0 +1,471 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<flow-definition plugin="workflow-job@2.10">
+  <actions/>
+  <description></description>
+  <logRotator class="hudson.tasks.LogRotator">
+    <daysToKeep>60</daysToKeep>
+    <numToKeep>-1</numToKeep>
+    <artifactDaysToKeep>-1</artifactDaysToKeep>
+    <artifactNumToKeep>-1</artifactNumToKeep>
+  </logRotator>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.TextParameterDefinition>
+          <name>PR_ID</name>
+          <defaultValue></defaultValue>
+        </hudson.model.TextParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+    <com.coravy.hudson.plugins.github.GithubProjectProperty plugin="github@1.21.1">
+      <projectUrl>https://github.com/https://github.com/ePages-de/jenkins-rnd-pipeline.git/</projectUrl>
+    </com.coravy.hudson.plugins.github.GithubProjectProperty>
+  </properties>
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@2.30">
+    <script>import groovy.json.JsonSlurper;
+
+String pr_branch = &quot;pr-${PR_ID}&quot;
+String infra_dir = &apos;/root/epages-infra&apos;;
+String changed_cartridges_file = &quot;/tmp/${env.JOB_NAME}.changed_cartridges.txt&quot;;
+String updated_change_cartridge_file = &quot;/tmp/${env.JOB_NAME}.updated_changed_cartridges.txt&quot;;
+String additionalCartridges = &quot;&quot;;
+String changed_perl_files = &quot;/tmp/${env.JOB_NAME}.changed_perl_files.txt&quot;;
+String changed_languages_file = &quot;/tmp/${env.JOB_NAME}.changed_languages.txt&quot;;
+String changed_files_file = &quot;/tmp/${env.JOB_NAME}.changed_files.txt&quot;;
+String git_diff_stat_file = &quot;/tmp/${env.JOB_NAME}.git_diff_stat.txt&quot;;
+String ep_root = &quot;/srv/epages/eproot&quot;
+String committer_mail_file = &quot;/tmp/pr_test_mail_adress.txt&quot;;
+String mail_address = &quot;&quot;;
+String pr_title = &quot;&quot;;
+String esf_test_shop = &quot;DemoShop${env.BUILD_NUMBER}&quot;;
+String perl_files_text = &quot;&quot;;
+boolean is_multistore = false;
+boolean additional_cartridges = false;
+boolean perl_files_changed = false;
+boolean html_files_changed = false;
+
+node(&quot;cartridges_pull_requests_ng&quot;) {
+  stage(&quot;Checking out PR changeset&quot;)
+
+    try {
+      sh &quot;test -d /root/jenkins/workspace/${env.JOB_NAME}/.git&quot;
+      echo &apos;Git repo Cartridges already present.&apos;
+    } catch (e) {
+      sh &quot;cd /root/jenkins/workspace/ &amp;&amp; git clone git@github.com:ePages-de/Cartridges.git ${env.JOB_NAME}&quot;
+    }
+
+    echo &quot;Fetching origin first...&quot;
+    sh &quot;git fetch origin&quot;
+
+    echo &quot;Cleaning up changed files from local repo...&quot;
+    sh &quot;git checkout -- .&quot;
+    sh &quot;git rm -rf --cached . &gt; /dev/null&quot;
+    sh &quot;git clean -d -f -x&quot;
+    sh &quot;git reset --hard HEAD&quot;
+
+    try {
+      sh &quot;git branch | grep -q ${pr_branch}&quot;
+      echo &quot;Branch ${pr_branch} already exists.&quot;
+      sh &quot;git checkout develop&quot;
+      sh &quot;git branch -D ${pr_branch}&quot;
+    } catch (e) {
+      echo &quot;Branch ${pr_branch} doesn&apos;t exist yet.&quot;
+    }
+
+    echo &quot;Fetching Pull Request #${PR_ID}...&quot;
+    sh &quot;git fetch origin pull/${PR_ID}/head:${pr_branch}&quot;
+    echo &quot;Checking out PR branch...&quot;
+    sh &quot;git checkout ${pr_branch}&quot;
+
+  stage(&quot;Merging PR branch onto tmp. develop for testing&quot;)
+    String dev_for_testing = &apos;develop-for-pr-testing&apos;
+    try {
+      sh &quot;git branch | grep -q ${dev_for_testing}&quot;
+      echo &quot;Branch ${dev_for_testing} already exists. Deleting it now.&quot;
+      sh &apos;git checkout develop&apos;
+      sh &quot;git branch -D ${dev_for_testing}&quot;
+    } catch (e) {
+      echo &quot;Branch ${dev_for_testing} does not exist yet.&quot;
+      sh &apos;git checkout develop&apos;
+    }
+
+    echo &quot;Updating branch develop...&quot;
+    sh &quot;git pull origin develop&quot;
+    echo &quot;Creating tmp. develop ${dev_for_testing}...&quot;
+    sh &quot;git checkout -b ${dev_for_testing}&quot;
+
+    // We need to rebase to avoid a merge commit.
+    echo &quot;Rebase Pull Request #${PR_ID} onto our tmp. develop for testing...&quot;
+    try {
+      sh &quot;git checkout ${pr_branch}&quot;
+      sh &quot;git rebase ${dev_for_testing}&quot;
+      sh &quot;git checkout ${dev_for_testing}&quot;
+      sh &quot;git merge ${pr_branch}&quot;
+    } catch (e) {
+      // In case of a merge error, we reset in order to avoid problems for following runs.
+      sh &apos;git rebase --abort &amp;&amp; git checkout --force develop &amp;&amp; git reset HEAD&apos;
+      throw e;
+    }
+
+  stage(&quot;Running Puppet agent&quot;)
+    int return_code = -1;
+    try {
+      sh &apos;puppet agent --test&apos;
+    } catch(e) {
+      // Calls to Puppet Agent return 0, if nothing has changed and
+      // 2, if Puppet could execute steps successfully.
+      return_code = this.getExitCode(e.message);
+      if (return_code != 0 &amp;&amp; return_code != 2) {
+        throw e;
+      }
+    }
+
+  stage(&quot;TEST: Checking Git commits&quot;)
+    /**
+     * The environment variable WORKSPACE is currently unavailable inside a Pipeline script.
+     * (Tested with plugin version 1.14.)
+     *
+     * The path we use now is valid only for PR test nodes (cd-vm-test-pr-[0-9]{3}) and may
+     * be different elsewhere.
+     *
+     * Reference: http://&lt;YOUR RUNNING INSTANCE&gt;/workflow-cps-snippetizer/dslReference
+     */
+    try {
+      sh &quot;${infra_dir}/scripts/epages/test/check_git_commits.sh -d /root/jenkins/workspace/${env.JOB_NAME} -m&quot;
+      sh &quot;${infra_dir}/scripts/epages/github/get_infos_from_git_API.sh -p ${PR_ID} -t 1b96f591aad7f151df229965bf4177d9d3d7cf06&quot;
+
+      mail_address = readFile(&quot;${committer_mail_file}&quot;)
+      pr_title = readFile(&quot;/tmp/${PR_ID}.title.txt&quot;)
+
+    } catch (e) {
+      this.sendMailToCommitter(&quot;TEST: Checking Git commits&quot;, &quot;${mail_address}&quot;, &quot;${pr_title}&quot;)
+      throw e;
+    }
+
+  // Generating list of changed Languages, Cartridges and files
+  stage(&quot;Generating list of changed Languages, Cartridges and files&quot;)
+    // Remove files, if they exist
+    sh &quot;if test -f ${changed_languages_file}  ; then rm -f ${changed_languages_file}  ; fi&quot;
+    sh &quot;if test -f ${changed_cartridges_file} ; then rm -f ${changed_cartridges_file} ; fi&quot;
+    sh &quot;if test -f ${changed_files_file}      ; then rm -f ${changed_files_file}     ; fi&quot;
+
+    // Create changed_files_file, changed_cartridges_file, changed_languages_file
+    sh &quot;${infra_dir}/scripts/epages/pr/get_changed_languages.sh -d /root/jenkins/workspace/${env.JOB_NAME} -l ${changed_languages_file}&quot;
+    sh &quot;${infra_dir}/scripts/epages/pr/get_changed_cartridges.sh -d /root/jenkins/workspace/${env.JOB_NAME} -l ${changed_cartridges_file}&quot;
+    sh &quot;${infra_dir}/scripts/epages/pr/get_changed_files.sh -d /root/jenkins/workspace/${env.JOB_NAME} -l ${changed_files_file}&quot;
+
+    // Check which files changed for the following Perl::Critic test
+    def changed_files = &quot;&quot;;
+    def file_file = readFile(&quot;${changed_files_file}&quot;).split(&quot;\r?\n&quot;)
+    for (String line : file_file) {
+      if ( line =~ /\.pm$/ || line =~ /\.pl$/ || line =~ /\.t$/) {
+        perl_files_text += line + &quot;\n&quot;
+        perl_files_changed = true;
+      }
+      if ( line =~ /\.html/) {
+        html_files_changed = true;
+      }
+      if ( line =~ /DE_EPAGES\/MultiStore*/ ) {
+        is_multistore = true;
+      }
+      if ( line =~ /DE_EPAGES\/ELogistics*/ || line =~ /DE_EPAGES\/Envialia*/ || line =~ /DE_EPAGES\/TagCommander*/ || line =~ /DE_EPAGES\/Diagnostics*/ ) {
+        additional_cartridges = true;
+      }
+    }
+
+    // Ignore cartridges, which are only installed on Site
+    // CodeGenerator|Flex|Test|ShopConfiguration|ShopTransferProvider
+    def text = &quot;&quot;;
+    def cartridges_file = readFile(&quot;${changed_cartridges_file}&quot;).split(&quot;\r?\n&quot;)
+    for (String line : cartridges_file) {
+      if ( ! ( line =~ /CodeGenerator/ || line =~ /Flex/ || line =~ /Test/ || line =~ /ShopConfiguration/ || line =~ /ShopTransferProvider/ )) {
+        text += line + &quot;\n&quot;
+      }
+      if (line =~ /ELogistics/ || line =~ /Envialia/ || line =~ /TagCommander/ || line =~ /Diagnostics/) {
+          additionalCartridges += line + &quot; &quot;
+      }
+    }
+    writeFile file: &quot;${updated_change_cartridge_file}&quot;, text: &quot;${text}&quot;
+    writeFile file: &quot;${changed_perl_files}&quot;, text: &quot;${perl_files_text}&quot;
+
+  // Copy updated sources to cartridge directory
+  stage(&quot;Copy updated sources to Cartridge directory&quot;)
+    withEnv([&quot;BUILD_ID=dontKillMe&quot;]) {
+      // We need an epages installation, if it is not present (AD-4969)
+      sh &quot;${infra_dir}/scripts/epages/reinstall-update-cartridges.sh -s /root/jenkins/workspace/${env.JOB_NAME}&quot;
+    }
+
+  // Check that there is now windows line endings
+  stage(&quot;Check line endings&quot;)
+    try {
+      sh &quot;${infra_dir}/scripts/epages/test/check_line_endings.sh -f ${changed_files_file}&quot;
+    }
+    catch(e) {
+      this.sendMailToCommitter(&quot;Stage: Check line endings&quot;, &quot;${mail_address}&quot;, &quot;${pr_title}&quot;)
+      throw e;
+    }
+
+  // Make Perl::Critic earlier
+  stage(&quot;TEST: Perl::Critic&quot;)
+    try {
+      if (perl_files_changed) {
+        sh &quot;${infra_dir}/scripts/epages/test/run_perl_critic_test.sh -c ${changed_perl_files}&quot;
+      }
+    } catch (e) {
+      this.sendMailToCommitter(&quot;TEST: Perl::Critic&quot;, &quot;${mail_address}&quot;, &quot;${pr_title}&quot;)
+      throw e;
+    }
+
+  stage(&quot;Restart services&quot;)
+    withEnv([&quot;BUILD_ID=dontKillMe&quot;]) {
+      /**
+       * Restart epages6 service and solr.
+       * Reference: https://epages.atlassian.net/browse/AD-4862
+       */
+      try {
+        echo &quot;Restarting epages6 and solr services.&quot;
+        sh &quot;service epages6 start&quot;
+        sh &quot;service mongodb restart&quot;
+        sh &quot;service epages-solr-slave restart&quot;
+        sh &quot;service epages-solr restart&quot;
+        sh &quot;service epagesj restart&quot;
+      } catch (e) {
+        echo &quot;Services are running fine.&quot;
+      }
+    }
+
+  // Start reinstall
+  stage(&quot;Reinstalling ePages with updated sources&quot;)
+    withEnv([&quot;BUILD_ID=dontKillMe&quot;]) {
+      try {
+        if (is_multistore) {
+          sh &quot;export SKIP_ALIVE_CHECK=1; ${infra_dir}/scripts/epages/reinstall.sh -s /root/jenkins/workspace -m&quot;
+          echo &quot;Installing additional cartridges for MultiStore...&quot;
+          sh &quot;${infra_dir}/scripts/epages/install_all_additional_cartridges.sh -m&quot;
+        } else {
+          /**
+           * We have to uninstall MultiStore first to avoid conflicts building Storetypes
+           * Reference: https://epages.atlassian.net/browse/AD-4805
+           */
+          echo &quot;Uninstall possible MultiStore installation first...&quot;
+          sh &quot;cd ${ep_root}/Cartridges/DE_EPAGES &amp;&amp; ${ep_root}/Perl/bin/perl Makefile.PL &amp;&amp; make uninstall_multistore&quot;
+          sh &quot;export SKIP_ALIVE_CHECK=1; ${infra_dir}/scripts/epages/reinstall.sh -s /root/jenkins/workspace&quot;
+          
+          // We need to install additional cartridges, if we have changes there.
+          if (additional_cartridges) {
+            echo &quot;Installing additional cartridges...&quot;
+            sh &quot;${infra_dir}/scripts/epages/install_all_additional_cartridges.sh -c \&quot;${additionalCartridges}\&quot;&quot;
+          }
+        }
+      } catch (e) {
+      this.sendMailToCommitter(&quot;Reinstalling ePages with updated sources&quot;, &quot;${mail_address}&quot;, &quot;${pr_title}&quot;)
+      throw e;
+      }
+    }
+
+  /**
+   * Check if changed cartridges are present in Cartridges.xml
+   * Reference: https://epages.atlassian.net/browse/AD-4602
+   */
+  stage(&quot;TEST: Check entries in Cartridges.xml&quot;)
+    withEnv([&quot;BUILD_ID=dontKillMe&quot;]) {
+      try {
+        sh &quot;${infra_dir}/scripts/epages/test/run_has_entry_in_cartridges_xml.sh -l ${changed_cartridges_file}&quot;
+      } catch (e) {
+        this.sendMailToCommitter(&quot;TEST: Check entries in Cartridges.xml&quot;, &quot;${mail_address}&quot;, &quot;${pr_title}&quot;)
+        throw e;
+      }
+    }
+
+  stage(&quot;Reconfigure App Servers and stop ePages cron jobs&quot;)
+    withEnv([&quot;BUILD_ID=dontKillMe&quot;]) {
+      sh &quot;${infra_dir}/scripts/epages/configure_app_servers.sh -m 390 -n 3 -r&quot;
+      sh &apos;/etc/init.d/epages6 stop_cron&apos;
+    }
+
+  stage(&quot;TEST: Perl module tests&quot;)
+    // Set this environment variable to skip performance tests, as they
+    // are very flaky on virtual machines, due to varying performance.
+    env.SKIP_TIMING = &quot;yes&quot;
+    /**
+     * Do not run the tests for 3rd-party APIs as they are (for the most
+     * part) very flaky too.
+     *
+     * NOTE: This should be disabled in the future, but requires more
+     * error prone tests.
+     */
+    env.SKIP_EXTERNAL_TESTS = &quot;yes&quot;
+
+    try {
+      def updated_changed_cartridge = readFile(&quot;${updated_change_cartridge_file}&quot;).trim()
+      if ( updated_changed_cartridge != &quot;&quot;) {
+        if (is_multistore) {
+          sh &quot;${infra_dir}/scripts/epages/test/run_perl_module_tests.sh Master ${updated_change_cartridge_file}&quot;
+          sh &quot;${infra_dir}/scripts/epages/test/run_perl_module_tests.sh MultiStore ${updated_change_cartridge_file}&quot;
+          this.runTestCartridgeTests(&quot;Master&quot;, &quot;${ep_root}&quot;)
+          this.runTestCartridgeTests(&quot;MultiStore&quot;, &quot;${ep_root}&quot;)
+        } else {
+          sh &quot;${infra_dir}/scripts/epages/test/run_perl_module_tests.sh Store ${updated_change_cartridge_file}&quot;
+          this.runTestCartridgeTests(&quot;Store&quot;, &quot;${ep_root}&quot;)
+        }
+      }
+    } catch (e) {
+      this.sendMailToCommitter(&quot;TEST: Perl module tests&quot;, &quot;${mail_address}&quot;, &quot;${pr_title}&quot;)
+      throw e;
+    }
+
+  stage(&quot;TEST: Check language tags for changed languages&quot;)
+    try {
+      if (is_multistore) {
+        sh &quot;${infra_dir}/scripts/epages/test/run_check_language_tags.sh -s &apos;Master&apos; -f ${changed_languages_file} -t ${changed_cartridges_file}&quot;
+        sh &quot;${infra_dir}/scripts/epages/test/run_check_language_tags.sh -s &apos;MultiStore&apos; -f ${changed_languages_file} -t ${changed_cartridges_file}&quot;
+      } else {
+        sh &quot;${infra_dir}/scripts/epages/test/run_check_language_tags.sh -s &apos;Store&apos; -f ${changed_languages_file} -t ${changed_cartridges_file}&quot;
+      }
+    } catch (e) {
+      this.sendMailToCommitter(&quot;TEST: Check language tags for changed languages&quot;, &quot;${mail_address}&quot;, &quot;${pr_title}&quot;)
+      throw e;
+    }
+
+  stage(&quot;TEST: Compile templates&quot;)
+    try {
+      if (html_files_changed) {
+        sh &quot;${infra_dir}/scripts/epages/test/run-template-tle-test.sh&quot;
+      }
+    } catch (e) {
+      this.sendMailToCommitter(&quot;TEST: Compile templates&quot;, &quot;${mail_address}&quot;, &quot;${pr_title}&quot;)
+      throw e;
+    }
+
+  stage(&quot;TEST: Check for unused files&quot;)
+    try {
+      sh &quot;${infra_dir}/scripts/epages/test/run_check_for_unused_files.sh&quot;
+    } catch (e) {
+      this.sendMailToCommitter(&quot;TEST: Check for unused files&quot;, &quot;${mail_address}&quot;, &quot;${pr_title}&quot;)
+      throw e;
+    }
+
+  stage(&quot;TEST: ESF SMOKETESTS&quot;)
+    try {
+      // Deactivated because of issue ESF-1584
+      //if (is_multistore) {
+      //  build job: &quot;Run_ESF_tests&quot;, parameters: [[$class: &apos;StringParameterValue&apos;, name: &apos;TARGET_DOMAIN&apos;, value: getCurrentHostname()],
+      //                                           [$class: &apos;StringParameterValue&apos;, name: &apos;SHOP&apos;, value: &apos;MasterShop&apos;],
+      //                                           [$class: &apos;StringParameterValue&apos;, name: &apos;TESTGROUPS&apos;, value: &apos;SMOKETEST&apos;],
+      //                                           [$class: &apos;StringParameterValue&apos;, name: &apos;STORE&apos;, value: &apos;Master&apos;]]
+      //}
+      //else {
+      //  sh &quot;${infra_dir}/scripts/epages/create_shop.sh -n ${esf_test_shop} -t &apos;Demo&apos; -s Store -i&quot;
+      //  build job: &quot;Run_ESF_tests&quot;, parameters: [[$class: &apos;StringParameterValue&apos;, name: &apos;TARGET_DOMAIN&apos;, value: getCurrentHostname()],
+      //                                           [$class: &apos;StringParameterValue&apos;, name: &apos;SHOP&apos;, value: esf_test_shop],
+      //                                           [$class: &apos;StringParameterValue&apos;, name: &apos;TESTGROUPS&apos;, value: &apos;SMOKETEST&apos;]]
+      //}
+    } catch (e) {
+      this.sendMailToCommitter(&quot;TEST: ESF SMOKETESTS&quot;, &quot;${mail_address}&quot;, &quot;${pr_title}&quot;)
+      throw e;
+    }
+
+  stage(&quot;TEST: Webservice SOAP Tests&quot;)
+    try {
+      sh &quot;git diff --stat HEAD..origin/develop &gt; ${git_diff_stat_file}&quot;
+      def ws_start_check_script = &quot;${infra_dir}/scripts/epages/util/test_if_webservice_tests_are_required.sh&quot;
+
+      if (trySh(&quot;${ws_start_check_script} -d ${git_diff_stat_file}&quot;) == 0) {
+        echo &quot;Starting SOAP API Tests...&quot;
+        sh &quot;${infra_dir}/scripts/epages/test/run_web_service_tests.sh -d \$(hostname --fqdn)&quot;
+      } else {
+        echo &quot;SOAP API Tests dont need to be started.&quot;
+      }
+    } catch (e) {
+      this.sendMailToCommitter(&quot;TEST: Webservice SOAP Tests&quot;, &quot;${mail_address}&quot;, &quot;${pr_title}&quot;)
+      throw e;
+    }
+
+  stage(&quot;POST: Send success mail&quot;)
+
+    String chuck = this.getRandomChuckJoke();
+    mail (to: &quot;$mail_address&quot;,
+          subject: &quot;[PR Test] Your Pull request ${pr_title} was successful.&quot;,
+          body: &quot;Your Pull Request\n${pr_title}was successful.\n(see ${env.BUILD_URL})\nGood work.\n\nSincerely,\nTeam Orange\n\n----------\n\n${chuck}&quot;);
+    echo &quot;Pull Request succeeded. Mail was sent. Have a nice day. :)&quot;
+} // end of node
+
+
+/**
+ * Returns the Fully Qualified Domain Name for the node in which this function is being invoked.
+ */
+def getCurrentHostname() {
+
+  sh &quot;hostname -f | tr &apos;\n&apos; -d | sed -r &apos;s/-\$//&apos;  &gt; /tmp/hostname.txt&quot;
+  return readFile(&quot;/tmp/hostname.txt&quot;)
+}
+
+/**
+ * Try to run the given shell command and return the exit code
+ */
+def int trySh(shellCommand) {
+
+  try {
+    sh([script: shellCommand])
+    return 0
+  } catch (e) {
+    return getExitCode(e.message)
+  }
+}
+
+/**
+ * Read out the exit code number from an exception message.
+ *
+ * The message parameters looks like this: &quot;script returned exit code 2&quot;
+ */
+def int getExitCode(message) {
+
+  // http://mrhaki.blogspot.de/2009/09/groovy-goodness-matchers-for-regular.html
+  def group = (message =~ /script returned exit code ([0-9]+)/)
+  return Integer.parseInt(group[0][1]);
+}
+
+/**
+ * Send mail to committer, if a stage has errors.
+ * Reference: https://epages.atlassian.net/browse/AD-4946
+ */
+def sendMailToCommitter(String stage, String committer_mail, String title) {
+
+  // https://www.cloudbees.com/blog/mail-step-jenkins-workflow
+  title = title.replace(&quot;\n&quot;, &quot;&quot;);
+  mail (to: &quot;$committer_mail&quot;,
+        subject: &quot;[PR Test] Your Pull request ${title} failed on ${stage}.&quot;,
+        body: &quot;Your Pull Request\n${title}\nfailed.\nPlease go to ${env.BUILD_URL} and check the results.\n\nThanks,\nTeam Orange&quot;);
+  echo &quot;Abort now. Mail was send to ${committer_mail}&quot;
+}
+
+/**
+ * Get a random chuck norris joke for success mails
+ */
+def String getRandomChuckJoke() {
+
+  def chuckAPI = &quot;http://api.icndb.com/jokes/random&quot;
+
+  def chuckJSON = new JsonSlurper().parseText( chuckAPI.toURL().openConnection().content.text )
+  def chuckJoke = chuckJSON.value.joke
+
+  return chuckJoke;
+}
+
+/**
+ * We don&apos;t want to run every test from Cartridge &apos;Test&apos; as this consume to much time.
+ * Reference: https://epages.atlassian.net/browse/AD-5049
+ */
+def runTestCartridgeTests(String store, String rootPath) {
+  // We need to set the store first, then start to test.
+  sh &quot;export EPAGES_TESTSITE=${store} &amp;&amp; cd ${rootPath}/Cartridges/DE_EPAGES &amp;&amp;  ${rootPath}/Perl/bin/perl Test/t/translationFiles.t&quot;
+  sh &quot;export EPAGES_TESTSITE=${store} &amp;&amp; cd ${rootPath}/Cartridges/DE_EPAGES &amp;&amp;  ${rootPath}/Perl/bin/perl Test/t/translationJS.t&quot;
+  sh &quot;export EPAGES_TESTSITE=${store} &amp;&amp; cd ${rootPath}/Cartridges/DE_EPAGES &amp;&amp;  ${rootPath}/Perl/bin/perl Test/t/pageTypes.t&quot;
+}
+</script>
+    <sandbox>false</sandbox>
+  </definition>
+  <triggers/>
+  <quietPeriod>0</quietPeriod>
+</flow-definition>

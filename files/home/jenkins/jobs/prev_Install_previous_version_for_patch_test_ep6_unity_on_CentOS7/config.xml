@@ -1,0 +1,177 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description>This job creates a snapshot for the latest released ePages version which is used in patching later.&lt;br /&gt;&lt;br /&gt;&#xd;
+Needed parameters: &lt;br /&gt;&lt;br /&gt;&#xd;
+* &lt;b&gt;$VERSION&lt;/b&gt; - Create new snapshot with that version.&lt;br /&gt;&#xd;
+* &lt;b&gt;$PREVIOUS_VERSION&lt;/b&gt; - Delete existing snapshot with that version.&lt;br /&gt;&#xd;
+</description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <jenkins.model.BuildDiscarderProperty>
+      <strategy class="hudson.tasks.LogRotator">
+        <daysToKeep>60</daysToKeep>
+        <numToKeep>-1</numToKeep>
+        <artifactDaysToKeep>-1</artifactDaysToKeep>
+        <artifactNumToKeep>-1</artifactNumToKeep>
+      </strategy>
+    </jenkins.model.BuildDiscarderProperty>
+    <hudson.plugins.buildblocker.BuildBlockerProperty plugin="build-blocker-plugin@1.7.3">
+      <useBuildBlocker>false</useBuildBlocker>
+      <blockLevel>UNDEFINED</blockLevel>
+      <scanQueueFor>DISABLED</scanQueueFor>
+      <blockingJobs></blockingJobs>
+    </hudson.plugins.buildblocker.BuildBlockerProperty>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>VERSION</name>
+          <description>Create new snapshot with that version.</description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>PREVIOUS_VERSION</name>
+          <description>Delete existing snapshot with that version.</description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+    <com.dabsquared.gitlabjenkins.connection.GitLabConnectionProperty plugin="gitlab-plugin@1.4.3">
+      <gitLabConnection>https://am-git.intern.epages.de/</gitLabConnection>
+    </com.dabsquared.gitlabjenkins.connection.GitLabConnectionProperty>
+    <com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty plugin="naginator@1.17.2">
+      <optOut>false</optOut>
+    </com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty>
+    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.25">
+      <autoRebuild>false</autoRebuild>
+      <rebuildDisabled>false</rebuildDisabled>
+    </com.sonyericsson.rebuild.RebuildSettings>
+    <de.pellepelster.jenkins.walldisplay.WallDisplayJobProperty plugin="jenkinswalldisplay@0.6.30">
+      <wallDisplayName>Install test A-01: Unity - Install ePages and connect Unity</wallDisplayName>
+    </de.pellepelster.jenkins.walldisplay.WallDisplayJobProperty>
+  </properties>
+  <scm class="hudson.scm.NullSCM"/>
+  <quietPeriod>0</quietPeriod>
+  <assignedNode>cd-vm-test-patch-unity</assignedNode>
+  <canRoam>false</canRoam>
+  <disabled>true</disabled>
+  <blockBuildWhenDownstreamBuilding>true</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers/>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+echo &quot;SNIPPET 1: epages-infra&quot;
+
+if [[ ! -d ~/epages-infra/.git ]] ; then
+    cd ~
+    git clone git@github.com:ePages-de/epages-infra.git
+else
+    cd ~/epages-infra &amp;&amp; git pull origin master
+fi
+</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+echo &quot;SNIPPET 2: jenkins-installs-epages.sh&quot;
+
+export BUILD_ID=dontKillMe
+~/epages-infra/scripts/epages/jenkins-installs-epages.sh -i simple/install-epages-unity.conf -r ftp://ftp.epages.com/pub/epages/build/repo/$VERSION/latest
+</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+echo &quot;SNIPPET 3: Setup unity to us SSL&quot;
+
+export BUILD_ID=dontKillMe
+
+# copy certificates
+curl http://am-vm-intranet.intern.epages.de/AM/certificates/_.intern.epages.de/_.intern.epages.de.crt | tee /etc/apache2-epages/ssl.crt/unity.crt &gt; /etc/apache2-epages/ssl.crt/server.crt
+curl http://am-vm-intranet.intern.epages.de/AM/certificates/_.intern.epages.de/_.intern.epages.de.key | tee /etc/apache2-epages/ssl.key/unity.key &gt; /etc/apache2-epages/ssl.key/server.key
+curl http://am-vm-intranet.intern.epages.de/AM/certificates/_.intern.epages.de/ca.crt &gt; /etc/apache2-epages/ssl.crt/ca.crt
+
+# Change /etc/default/epages6
+sed -i &quot;s/^HTTPD_OPTS=.*/HTTPD_OPTS=&apos;-DSSL -DVHOSTS_NAME -DUNITY_VHOST&apos;/&quot; /etc/default/epages6
+
+# Set Unity connection parameter (some can be set in TBO manually)
+. /etc/default/epages6
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/set.pl -storename Site -path &quot;/Stores/Store&quot; UnityUrlScheme=&quot;$(hostname --fqdn)&quot;
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/set.pl -storename Site -path &quot;/Stores/Store&quot; UnityApiUrlScheme=&quot;api.$(hostname --fqdn)/api/v2&quot;
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/set.pl -storename Site -path &quot;/Stores/Store&quot; UnityUseSubdomainRouting=&quot;1&quot;
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/set.pl -storename Site -path &quot;/Stores/Store&quot; HasSSLCertificateUnity=&quot;1&quot;
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/set.pl -storename Site -path &quot;/Stores/Store&quot; UnityWebServerPort=&quot;80&quot;
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/set.pl -storename Site -path &quot;/Stores/Store&quot; UnitySSLWebServerPort=&quot;443&quot;
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/set.pl -storename Store -path / HasSSLCertificate=&quot;1&quot;  UnityBaseURL=&quot;http://$(hostname --fqdn)&quot;
+
+# Set set jwtsecret
+/var/epages/ini-config.sh -i -f $EPAGES_CONFIG/Database.d/Store.conf -k jwtsecret -v &apos;this-is-super-secret---not&apos;
+
+service epages6 start
+service epages6 start_java</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+echo &quot;SNIPPET 4: create shops&quot;
+
+export BUILD_ID=dontKillMe
+. /etc/default/epages6
+
+CREATE_SHOP=/srv/epages/eproot/Cartridges/DE_EPAGES/ShopConfiguration/Scripts/createShop.pl
+SET_PL=/srv/epages/eproot/Cartridges/DE_EPAGES/Object/Scripts/set.pl
+for shop in testshopunity esf-test ; do
+  echo $PERL $CREATE_SHOP -wsuser Providers/Distributor/Users/admin -passwd admin -shoptype UnityDE -storename Store -alias $shop -scriptname $shop
+  $PERL $CREATE_SHOP -wsuser Providers/Distributor/Users/admin -passwd admin -shoptype UnityDE -storename Store -alias $shop -scriptname $shop
+  echo $PERL $SET_PL -storename Store -path /Shops/$shop MailFrom=m.zeyen@epages.com
+  $PERL $SET_PL -storename Store -path /Shops/$shop MailFrom=m.zeyen@epages.com
+done
+</command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers>
+    <hudson.plugins.parameterizedtrigger.BuildTrigger plugin="parameterized-trigger@2.32">
+      <configs>
+        <hudson.plugins.parameterizedtrigger.BuildTriggerConfig>
+          <configs>
+            <hudson.plugins.parameterizedtrigger.PredefinedBuildParameters>
+              <properties>SNAPSHOT_NAME=${VERSION}
+VM_NAME=cd-vm-test-patch-unity</properties>
+            </hudson.plugins.parameterizedtrigger.PredefinedBuildParameters>
+          </configs>
+          <projects>create_snapshot_vcenter</projects>
+          <condition>SUCCESS</condition>
+          <triggerWithNoParameters>false</triggerWithNoParameters>
+        </hudson.plugins.parameterizedtrigger.BuildTriggerConfig>
+        <hudson.plugins.parameterizedtrigger.BuildTriggerConfig>
+          <configs>
+            <hudson.plugins.parameterizedtrigger.PredefinedBuildParameters>
+              <properties>SNAPSHOT_NAME=${PREVIOUS_VERSION}
+VM_NAME=cd-vm-test-patch-unity
+</properties>
+            </hudson.plugins.parameterizedtrigger.PredefinedBuildParameters>
+          </configs>
+          <projects>delete_snapshot_vcenter</projects>
+          <condition>SUCCESS</condition>
+          <triggerWithNoParameters>false</triggerWithNoParameters>
+        </hudson.plugins.parameterizedtrigger.BuildTriggerConfig>
+      </configs>
+    </hudson.plugins.parameterizedtrigger.BuildTrigger>
+  </publishers>
+  <buildWrappers>
+    <hudson.plugins.build__timeout.BuildTimeoutWrapper plugin="build-timeout@1.17.1">
+      <strategy class="hudson.plugins.build_timeout.impl.ElasticTimeOutStrategy">
+        <timeoutPercentage>200</timeoutPercentage>
+        <numberOfBuilds>60</numberOfBuilds>
+        <failSafeTimeoutDuration>false</failSafeTimeoutDuration>
+        <timeoutMinutesElasticDefault>180</timeoutMinutesElasticDefault>
+      </strategy>
+      <operationList>
+        <hudson.plugins.build__timeout.operations.FailOperation/>
+      </operationList>
+    </hudson.plugins.build__timeout.BuildTimeoutWrapper>
+    <hudson.plugins.ansicolor.AnsiColorBuildWrapper plugin="ansicolor@0.5.0">
+      <colorMapName>xterm</colorMapName>
+    </hudson.plugins.ansicolor.AnsiColorBuildWrapper>
+    <hudson.plugins.timestamper.TimestamperBuildWrapper plugin="timestamper@1.8.8"/>
+  </buildWrappers>
+</project>

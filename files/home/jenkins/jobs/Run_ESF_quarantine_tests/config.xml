@@ -1,0 +1,212 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description></description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <hudson.plugins.buildblocker.BuildBlockerProperty plugin="build-blocker-plugin@1.7.3">
+      <useBuildBlocker>false</useBuildBlocker>
+      <blockLevel>GLOBAL</blockLevel>
+      <scanQueueFor>DISABLED</scanQueueFor>
+      <blockingJobs></blockingJobs>
+    </hudson.plugins.buildblocker.BuildBlockerProperty>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>HOSTNAME</name>
+          <description></description>
+          <defaultValue>http://schwarzbart.epages.systems</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>BRANCH</name>
+          <description></description>
+          <defaultValue>pre-release-development</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>REMOTE</name>
+          <description></description>
+          <defaultValue>ePages-de</defaultValue>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+    <com.dabsquared.gitlabjenkins.connection.GitLabConnectionProperty plugin="gitlab-plugin@1.4.3">
+      <gitLabConnection>https://am-git.intern.epages.de/</gitLabConnection>
+    </com.dabsquared.gitlabjenkins.connection.GitLabConnectionProperty>
+    <com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty plugin="naginator@1.17.2">
+      <optOut>false</optOut>
+    </com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty>
+    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.25">
+      <autoRebuild>false</autoRebuild>
+      <rebuildDisabled>false</rebuildDisabled>
+    </com.sonyericsson.rebuild.RebuildSettings>
+    <de.pellepelster.jenkins.walldisplay.WallDisplayJobProperty plugin="jenkinswalldisplay@0.6.30"/>
+  </properties>
+  <scm class="hudson.plugins.git.GitSCM" plugin="git@2.5.3">
+    <configVersion>2</configVersion>
+    <userRemoteConfigs>
+      <hudson.plugins.git.UserRemoteConfig>
+        <url>git@github.com:${REMOTE}/esf.git</url>
+        <credentialsId>c24e751f-8d24-4c11-b02e-a6428c3f88b7</credentialsId>
+      </hudson.plugins.git.UserRemoteConfig>
+    </userRemoteConfigs>
+    <branches>
+      <hudson.plugins.git.BranchSpec>
+        <name>${BRANCH}</name>
+      </hudson.plugins.git.BranchSpec>
+    </branches>
+    <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+    <submoduleCfg class="list"/>
+    <extensions>
+      <hudson.plugins.git.extensions.impl.CleanBeforeCheckout/>
+    </extensions>
+  </scm>
+  <assignedNode>team-gold-demo-ms</assignedNode>
+  <canRoam>false</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers/>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+# We want to remove docker container first
+docker rmi $(docker images --filter &quot;dangling=true&quot; -q --no-trunc) || true</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+sudo docker login -u ${DOCKER_USERNAME} -p &quot;${DOCKER_PASSWORD}&quot; -e teamorange@epages.com
+# We want to build the ESF package first
+# We have ESF checked out into $WORKSPACE
+docker run --rm -t -v ${WORKSPACE}:/opt/build -v ${WORKSPACE}/esf-epages6:/opt/esf-epages6 epages/oracle-jdk8-fontconfig-freetype:latest /bin/bash -c &apos;cd /opt/build; ./gradlew clean dist sonarRunner -q; ./gradlew esfCoverageReport;&apos;
+docker build -t florian:ziller .
+
+# Now run only the quarantine tests against schwarzbart.
+docker run --rm --user=root --env DBUS_SESSION_BUS_ADDRESS=/dev/null -v ${WORKSPACE}/esf/log:/home/esf/esf/log -t florian:ziller --quarantine -url ${HOSTNAME}/epages  -browser CHROME -ap 0 -iw 30 || true
+
+
+</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+for RESULT_FILE in `find &quot;${WORKSPACE}/esf/log&quot; -name &quot;emailable-report.html&quot; -type f | sort | tail -n1` ; do cp -vf &quot;$RESULT_FILE&quot; /tmp/. ; done
+
+EXIT_CODE_LOGSTASH=0
+
+# push the esf-test-results.json to our elasticsearch server via logstash docker container.
+
+############
+# logstash #
+############
+
+# mount dirs.
+export LS_LOG=&quot;$(find ${WORKSPACE} -maxdepth 3 -name &quot;log&quot; -type d)&quot;
+export LS_CONFIG=&quot;${WORKSPACE}/to-logstash/config&quot;
+
+# logstash.conf.
+export LS_INPUT=&quot;log,esf&quot;
+export LS_OUTPUT=&quot;log,elasticsearch&quot;
+
+###########
+# esf env #
+###########
+
+# epages6.# timestamp
+NOW=$(date +&apos;%Y.%m.%d-%H.%M.%S&apos;)
+export EPAGES_VERSION=&quot;ep6core_Quarantine&quot;
+export EPAGES_REPO_ID=&quot;${EPAGES_VERSION}/${NOW}&quot;
+
+# env url to dir &quot;.../esf/.../log&quot;.
+export ENV_URL=&quot;${BUILD_URL}artifact/esf/${LS_LOG#*/esf/}&quot;
+
+#################
+# elasticsearch #
+#################
+
+# elasticsearch connection details.
+export ES_HOSTS=&quot;[ &apos;cd-vm-docker-host-001.intern.epages.de:9200&apos; ]&quot;
+export ES_USER=&quot;admin&quot;
+export ES_PASSWORD=&quot;qwert6&quot;
+
+# elasticsearch document path.
+export ES_INDEX=&quot;esf-build-ui-tests&quot;
+
+##########
+# docker #
+##########
+
+# docker container settings.
+export LS_DOCKER_CONTAINER=&quot;to-logstash-esf-build-${BUILD_NUMBER}&quot;ll
+
+# pull latest logstash image.
+set +x
+sudo docker login -u ${DOCKER_USERNAME} -p &quot;${DOCKER_PASSWORD}&quot; -e teamorange@epages.com
+set -x
+
+sudo docker pull epages/to-logstash:latest
+
+# We have to either clone the repository or pull the last changes:
+if [[ -f ${WORKSPACE}/to-logstash/deploy.sh ]] ; then 
+  cd ${WORKSPACE}/to-logstash &amp;&amp; git pull origin dev
+else
+  git clone git@github.com:ePages-de/to-logstash.git
+fi
+
+export LS_DOCKER_NETWORK=false
+
+# run logstash docker container.
+${WORKSPACE}/to-logstash/deploy.sh</command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers>
+    <hudson.tasks.ArtifactArchiver>
+      <artifacts>esf/log/**</artifacts>
+      <allowEmptyArchive>false</allowEmptyArchive>
+      <onlyIfSuccessful>false</onlyIfSuccessful>
+      <fingerprint>false</fingerprint>
+      <defaultExcludes>true</defaultExcludes>
+      <caseSensitive>true</caseSensitive>
+    </hudson.tasks.ArtifactArchiver>
+    <hudson.plugins.emailext.ExtendedEmailPublisher plugin="email-ext@2.57.2">
+      <recipientList>f.ziller@epages.com</recipientList>
+      <configuredTriggers>
+        <hudson.plugins.emailext.plugins.trigger.FailureTrigger>
+          <email>
+            <subject>$PROJECT_DEFAULT_SUBJECT</subject>
+            <body>$PROJECT_DEFAULT_CONTENT</body>
+            <recipientProviders>
+              <hudson.plugins.emailext.plugins.recipients.DevelopersRecipientProvider/>
+            </recipientProviders>
+            <attachmentsPattern></attachmentsPattern>
+            <attachBuildLog>false</attachBuildLog>
+            <compressBuildLog>false</compressBuildLog>
+            <replyTo>$PROJECT_DEFAULT_REPLYTO</replyTo>
+            <contentType>project</contentType>
+          </email>
+        </hudson.plugins.emailext.plugins.trigger.FailureTrigger>
+      </configuredTriggers>
+      <contentType>default</contentType>
+      <defaultSubject>$DEFAULT_SUBJECT</defaultSubject>
+      <defaultContent>$DEFAULT_CONTENT</defaultContent>
+      <attachmentsPattern></attachmentsPattern>
+      <presendScript>$DEFAULT_PRESEND_SCRIPT</presendScript>
+      <postsendScript>$DEFAULT_POSTSEND_SCRIPT</postsendScript>
+      <attachBuildLog>false</attachBuildLog>
+      <compressBuildLog>false</compressBuildLog>
+      <replyTo>$DEFAULT_REPLYTO</replyTo>
+      <saveOutput>false</saveOutput>
+      <disabled>false</disabled>
+    </hudson.plugins.emailext.ExtendedEmailPublisher>
+  </publishers>
+  <buildWrappers>
+    <org.jenkinsci.plugins.credentialsbinding.impl.SecretBuildWrapper plugin="credentials-binding@1.11">
+      <bindings>
+        <org.jenkinsci.plugins.credentialsbinding.impl.UsernamePasswordMultiBinding>
+          <credentialsId>5d80ffaa-b0af-4369-9b79-1b35557587d1</credentialsId>
+          <usernameVariable>DOCKER_USERNAME</usernameVariable>
+          <passwordVariable>DOCKER_PASSWORD</passwordVariable>
+        </org.jenkinsci.plugins.credentialsbinding.impl.UsernamePasswordMultiBinding>
+      </bindings>
+    </org.jenkinsci.plugins.credentialsbinding.impl.SecretBuildWrapper>
+  </buildWrappers>
+</project>

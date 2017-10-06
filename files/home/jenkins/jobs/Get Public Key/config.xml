@@ -1,0 +1,91 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description>&lt;b&gt;&#xd;
+  This program shows public keys stored in git:epages-de/jenkins-rnd-pipeline/public-keys/.&lt;br&gt;&#xd;
+  Run &lt;a href=http://jenkins.intern.epages.de:8080/view/Public%20Keys/job/Get%20Public%20Key/build?delay=0sec&gt;Build with Parameters&lt;/a&gt; then the output is shown in &lt;a href=http://jenkins.intern.epages.de:8080/view/Public%20Keys/job/Get%20Public%20Key/lastSuccessfulBuild/artifact/get-public-key.txt&gt;get-public-key.txt&lt;/a&gt;&#xd;
+&lt;/b&gt;</description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <hudson.plugins.buildblocker.BuildBlockerProperty plugin="build-blocker-plugin@1.7.3">
+      <useBuildBlocker>false</useBuildBlocker>
+      <blockLevel>UNDEFINED</blockLevel>
+      <scanQueueFor>DISABLED</scanQueueFor>
+      <blockingJobs></blockingJobs>
+    </hudson.plugins.buildblocker.BuildBlockerProperty>
+    <jenkins.model.BuildDiscarderProperty>
+      <strategy class="hudson.tasks.LogRotator">
+        <daysToKeep>1</daysToKeep>
+        <numToKeep>8</numToKeep>
+        <artifactDaysToKeep>-1</artifactDaysToKeep>
+        <artifactNumToKeep>-1</artifactNumToKeep>
+      </strategy>
+    </jenkins.model.BuildDiscarderProperty>
+    <com.dabsquared.gitlabjenkins.connection.GitLabConnectionProperty plugin="gitlab-plugin@1.4.3">
+      <gitLabConnection>https://am-git.intern.epages.de/</gitLabConnection>
+    </com.dabsquared.gitlabjenkins.connection.GitLabConnectionProperty>
+    <com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty plugin="naginator@1.17.2">
+      <optOut>false</optOut>
+    </com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty>
+    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.25">
+      <autoRebuild>false</autoRebuild>
+      <rebuildDisabled>false</rebuildDisabled>
+    </com.sonyericsson.rebuild.RebuildSettings>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>NAME_GLOB</name>
+          <description>&lt;p&gt;Show names of public keys. NAME_GLOB is (a list of) globs as e.g.:
+
+&lt;ul&gt;
+&lt;li&gt; &lt;b&gt;*&lt;/b&gt;
+&lt;li&gt; &lt;b&gt;*filss* *r.schmidt*&lt;/b&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;b&gt;If NAME_GLOB is defined then KEY_GLOB is ignored.&lt;/b&gt;</description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>KEY_GLOB</name>
+          <description>&lt;p&gt;Show public keys. KEY_GLOB uses same parameters as NAME_GLOB, e.g.:
+
+&lt;ul&gt;
+&lt;li&gt; &lt;b&gt;mhoehn@epages.com thaapakoski@epages.com&lt;/b&gt;
+&lt;li&gt; &lt;b&gt;*filss* *r.schmidt*&lt;/b&gt;
+&lt;li&gt; &lt;b&gt;*filss* *rschmidt*&lt;/b&gt;
+&lt;/ul&gt;
+</description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+    <de.pellepelster.jenkins.walldisplay.WallDisplayJobProperty plugin="jenkinswalldisplay@0.6.30"/>
+  </properties>
+  <scm class="hudson.scm.NullSCM"/>
+  <quietPeriod>0</quietPeriod>
+  <assignedNode>master</assignedNode>
+  <canRoam>false</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>true</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers/>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+echo ~jenkins/jenkins-rnd-pipeline/scripts/get-public-key.sh -n &quot;$NAME_GLOB&quot; -k &quot;$KEY_GLOB&quot;
+~jenkins/jenkins-rnd-pipeline/scripts/get-public-key.sh -n &quot;$NAME_GLOB&quot; -k &quot;$KEY_GLOB&quot; &gt; get-public-key.txt</command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers>
+    <hudson.tasks.ArtifactArchiver>
+      <artifacts>get-public-key.txt</artifacts>
+      <allowEmptyArchive>false</allowEmptyArchive>
+      <onlyIfSuccessful>false</onlyIfSuccessful>
+      <fingerprint>false</fingerprint>
+      <defaultExcludes>true</defaultExcludes>
+      <caseSensitive>true</caseSensitive>
+    </hudson.tasks.ArtifactArchiver>
+  </publishers>
+  <buildWrappers/>
+</project>

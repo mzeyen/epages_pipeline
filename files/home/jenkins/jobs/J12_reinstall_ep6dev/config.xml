@@ -1,0 +1,384 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description>* Installs the durrent version of ePages6 - develop &lt;br /&gt;&#xd;
+* Gets repo ep6dev and reinstalls the branch &lt;br /&gt;&#xd;
+* Sets up 4 app server&lt;br /&gt;&#xd;
+* Sets up the TBO for connecting with locally installed unity latest&lt;br /&gt;&#xd;
+* Runs the following tests:&lt;br /&gt;&#xd;
+&lt;ul&gt;&#xd;
+ &lt;li&gt;unsed files test&lt;/li&gt;&#xd;
+ &lt;li&gt;language tag test&lt;/li&gt;&#xd;
+ &lt;li&gt;duplicate test&lt;/li&gt;&#xd;
+ &lt;li&gt;compile templates test&lt;/li&gt;&#xd;
+ &lt;li&gt;compile perl files test&lt;/li&gt;&#xd;
+ &lt;li&gt;create shops test&lt;/li&gt;&#xd;
+ &lt;li&gt;webservice tests &lt;/li&gt;&#xd;
+ &lt;li&gt;modul test store&lt;/li&gt;&#xd;
+ &lt;li&gt;modul test site&lt;/li&gt;&#xd;
+ &lt;li&gt;regression tests &lt;/li&gt;&#xd;
+ &lt;li&gt;perl critic test&lt;/li&gt;&#xd;
+ &lt;li&gt;JS-tests&lt;/li&gt;&#xd;
+&lt;/ul&gt;  &#xd;
+</description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <jenkins.model.BuildDiscarderProperty>
+      <strategy class="hudson.tasks.LogRotator">
+        <daysToKeep>-1</daysToKeep>
+        <numToKeep>10</numToKeep>
+        <artifactDaysToKeep>-1</artifactDaysToKeep>
+        <artifactNumToKeep>-1</artifactNumToKeep>
+      </strategy>
+    </jenkins.model.BuildDiscarderProperty>
+    <hudson.plugins.buildblocker.BuildBlockerProperty plugin="build-blocker-plugin@1.7.3">
+      <useBuildBlocker>false</useBuildBlocker>
+      <blockLevel>UNDEFINED</blockLevel>
+      <scanQueueFor>DISABLED</scanQueueFor>
+      <blockingJobs></blockingJobs>
+    </hudson.plugins.buildblocker.BuildBlockerProperty>
+    <com.dabsquared.gitlabjenkins.connection.GitLabConnectionProperty plugin="gitlab-plugin@1.4.3">
+      <gitLabConnection>https://am-git.intern.epages.de/</gitLabConnection>
+    </com.dabsquared.gitlabjenkins.connection.GitLabConnectionProperty>
+    <com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty plugin="naginator@1.17.2">
+      <optOut>false</optOut>
+    </com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty>
+    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.25">
+      <autoRebuild>false</autoRebuild>
+      <rebuildDisabled>false</rebuildDisabled>
+    </com.sonyericsson.rebuild.RebuildSettings>
+    <de.pellepelster.jenkins.walldisplay.WallDisplayJobProperty plugin="jenkinswalldisplay@0.6.30"/>
+  </properties>
+  <scm class="hudson.plugins.git.GitSCM" plugin="git@2.5.3">
+    <configVersion>2</configVersion>
+    <userRemoteConfigs>
+      <hudson.plugins.git.UserRemoteConfig>
+        <url>git@github.com:ePages-de/Cartridges.git</url>
+        <credentialsId>596d6633-1bb8-4ba9-9a9d-b4c652127182</credentialsId>
+      </hudson.plugins.git.UserRemoteConfig>
+    </userRemoteConfigs>
+    <branches>
+      <hudson.plugins.git.BranchSpec>
+        <name>*/develop</name>
+      </hudson.plugins.git.BranchSpec>
+    </branches>
+    <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+    <submoduleCfg class="list"/>
+    <extensions/>
+  </scm>
+  <quietPeriod>0</quietPeriod>
+  <assignedNode>greenteam-vm-02</assignedNode>
+  <canRoam>false</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers/>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+echo &quot;Step: update infra repo&quot;
+cd ~/epages-infra
+git pull origin master
+echo &quot;teamepages6: Update infra repo done&quot;</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>echo &quot;Step: Install ep6 latest version&quot;
+export BUILD_ID=dontKillMe
+export VERSION=`~/epages-infra/scripts/epages/util/get_version_number_from_makefile.sh -f &quot;${WORKSPACE}/DE_EPAGES/Makefile.PL&quot;`
+echo &quot;Version detected: &quot; ${VERSION}
+#export VERSION=6.17.48
+export REPO=&quot;ftp://ftp.epages.com/pub/epages/build/repo/$VERSION/latest&quot;
+
+#~/epages-infra/scripts/epages/install_epages.sh -r &quot;${REPO}
+~/epages-infra/scripts/epages/jenkins-installs-epages.sh -i simple/install-epages.conf -r ${REPO}
+echo &quot;teamepages6: Install base done&quot;
+</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+. /etc/default/epages6
+
+# make sure services running
+service epages6 start
+service epages6 start_java
+</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+export BUILD_ID=dontKillMe
+echo &quot;Step: Get repo&quot;
+. /etc/default/epages6
+cd $EPAGES
+
+mv Cartridges Cartridges_old
+git clone git@github.com:ePages-de/Cartridges.git  Cartridges
+
+cd $EPAGES_CARTRIDGES
+git remote add epages6dev git@github.com:epages6dev/Cartridges.git
+git checkout 
+git fetch epages6dev
+
+echo &quot;Step: Create branch ep6dev&quot;
+git checkout -b ep6dev epages6dev/ep6dev
+
+echo &quot;Step: Delete RND_EPAGES&quot;
+rm -rf RND_EPAGES/
+</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+export BUILD_ID=dontKillMe
+echo &quot;Step: Start reinstall&quot;
+. /etc/default/epages6
+service epages6 start
+service epages6 start_java
+cd $EPAGES_CARTRIDGES/DE_EPAGES
+$PERL Makefile.PL
+make reinstall
+</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+cd ~/epages-infra
+git pull origin master
+. /etc/default/epages6
+echo &quot;Step: Set up 4 app server&quot;
+~/epages-infra/scripts/epages/configure_app_servers.sh -m 500 -n 4
+service epages6 start
+service epages6 start_java
+</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+echo &quot;Step: Set up for Unity&quot;
+. /etc/default/epages6
+
+curl http://am-vm-intranet.intern.epages.de/AM/certificates/_.intern.epages.de/_.intern.epages.de.crt | tee /etc/apache2-epages/ssl.crt/unity.crt &gt; /etc/apache2-epages/ssl.crt/server.crt
+curl http://am-vm-intranet.intern.epages.de/AM/certificates/_.intern.epages.de/_.intern.epages.de.key | tee /etc/apache2-epages/ssl.key/unity.key &gt; /etc/apache2-epages/ssl.key/server.key
+curl http://am-vm-intranet.intern.epages.de/AM/certificates/_.intern.epages.de/ca.crt &gt; /etc/apache2-epages/ssl.crt/ca.crt
+
+sed -i &quot;s/^HTTPD_OPTS=.*/HTTPD_OPTS=&apos;-DSSL -DVHOSTS_NAME -DUNITY_VHOST&apos;/&quot; /etc/default/epages6
+
+sed -i &quot;s/^EPAGES_UNITY_HOST=.*/EPAGES_UNITY_HOST=ep6unity1.vm-intern.epages.com/&quot; /etc/default/epages6
+
+/var/epages/ini-config.sh -i -f $EPAGES_CONFIG/Database.d/Store.conf -k jwtsecret -v &apos;this-is-super-secret---not&apos;
+
+
+export MYHOSTNAME=$(hostname --fqdn)
+
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/set.pl -storename Site -path &quot;/Stores/Store&quot; UnityUrlScheme=&quot;$MYHOSTNAME&quot;
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/set.pl -storename Site -path &quot;/Stores/Store&quot; UnityApiUrlScheme=&quot;api.$MYHOSTNAME/api/v2&quot;
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/set.pl -storename Site -path &quot;/Stores/Store&quot; UnityUseSubdomainRouting=&quot;1&quot;
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/set.pl -storename Site -path &quot;/Stores/Store&quot; HasSSLCertificateUnity=&quot;1&quot;
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/set.pl -storename Site -path &quot;/Stores/Store&quot; UnityWebServerPort=&quot;80&quot;
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/set.pl -storename Site -path &quot;/Stores/Store&quot; UnitySSLWebServerPort=&quot;443&quot;
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/set.pl -storename Store -path / HasSSLCertificate=&quot;1&quot;  
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/set.pl -storename Store -path / UnityBaseURL=&quot;http://$MYHOSTNAME&quot;
+
+
+. /etc/default/epages6
+service epages6 start
+service epages6 start_java
+</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+export BUILD_ID=dontKillMe
+echo &quot;Step: Run all tests&quot;
+. /etc/default/epages6
+
+export SKIP_EXTERNAL_TESTS=&apos;yes&apos;
+export SKIP_TIMING=&apos;yes&apos;
+
+#cd /usr/lib64
+#cp --preserve=links /usr/lib64/libltdl.so.7 /usr/lib64/libltdl.so.3
+
+cd ~/epages-infra
+git pull origin master
+date
+echo start test: unsed files test
+#~/epages-infra/scripts/epages/test/run_check_for_unused_files.sh &gt; UnsuedFiles.txt 2&gt;&amp;1
+~/epages-infra/scripts/epages/test/run_check_for_unused_files.sh
+
+date
+echo start test: language tag test
+#~/epages-infra/scripts/epages/test/run_check_language_tags.sh &gt; LanguagTags.txt 2&gt;&amp;1
+~/epages-infra/scripts/epages/test/run_check_language_tags.sh
+
+
+date
+echo start test: duplicate test
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Presentation/Scripts/checkDuplicateTagDefs.pl $EPAGES_CARTRIDGES/DE_EPAGES
+
+echo start test: compile templates test
+#~/epages-infra/scripts/epages/compile_templates.sh &gt; CompileTemplates.txt 2&gt;&amp;1
+~/epages-infra/scripts/epages/compile_templates.sh
+
+date
+echo start test: compile perl files test
+#~/epages-infra/scripts/epages/test/run-compile-test-perl-files.sh &gt; CompilePerlFiles.txt 2&gt;&amp;1
+~/epages-infra/scripts/epages/test/run-compile-test-perl-files.sh
+
+date
+echo start test: create shops test
+#~/epages-infra/scripts/epages/test/run_create_one_shop_per_shoptype_test.sh &gt; CreateShops.txt 2&gt;&amp;1
+~/epages-infra/scripts/epages/test/run_create_one_shop_per_shoptype_test.sh
+
+date
+echo  start test:  webservice tests 
+yum -y install java-1.8.0-openjdk-devel.x86_64
+export JAVA_HOME=$(find /usr/lib/jvm/ -name &quot;java-1.8.0-openjdk-*&quot;)
+#~/epages-infra/scripts/epages/test/run_web_service_tests.sh &gt; WebServiceTest.txt 2&gt;&amp;1
+~/epages-infra/scripts/epages/test/run_web_service_tests.sh -b dev
+
+echo  restart epagesj
+service epages6 start_java
+
+date
+echo start test: modul test store
+#~/epages-infra/scripts/epages/test/run_perl_module_tests.sh Store &gt; PerlModules_Store.txt 2&gt;&amp;1
+~/epages-infra/scripts/epages/test/run_perl_module_tests.sh Store
+
+date
+echo start test: modul test site
+#~/epages-infra/scripts/epages/test/run_perl_module_tests.sh Site &gt; PerlModules_Site.txt 2&gt;&amp;1
+~/epages-infra/scripts/epages/test/run_perl_module_tests.sh Site
+
+date
+echo start test: regression tests 
+#~/epages-infra/scripts/epages/test/run_regression_tests.sh 	&gt; RegressionTest.txt 2&gt;&amp;1
+~/epages-infra/scripts/epages/test/run_regression_tests.sh
+
+date
+echo start test: perl critic test
+#~/epages-infra/scripts/epages/test/run_perl_critic_test.sh  -b &apos;Cartridges/RND_EPAGES Cartridges_old bin&apos;&gt; PerlCritic.txt 2&gt;&amp;1
+~/epages-infra/scripts/epages/test/run_perl_critic_test.sh  -b &apos;Cartridges/RND_EPAGES Cartridges_old bin&apos;
+echo tests finished
+
+echo restart services
+service epages6 start
+service epages6 start_java
+date
+</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+
+echo &quot;Step: Setup JS-tests&quot;
+export BUILD_ID=dontKillMe
+. /etc/default/epages6
+cd $EPAGES_CARTRIDGES/DE_EPAGES/JQuery/t/qUnit
+/root/nodejs/node-v6.10.0-linux-x64/bin/npm install
+
+export VERSION=7.9.0
+export VERSION=`~/epages-infra/scripts/epages/util/get_version_number_from_makefile.sh -f &quot;${WORKSPACE}/DE_EPAGES/Makefile.PL&quot;`
+export MYHOSTNAME=$(hostname --fqdn)
+
+echo  start test:  JS tests 
+/root/nodejs/node-v6.10.0-linux-x64/bin/node index.js -vm ${MYHOSTNAME} -v ${VERSION} -storetype Store -all -threads 6 -timeout 60 -table
+</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+export BUILD_ID=dontKillMe
+. /etc/default/epages6
+export SHOPNAME=aesf-test-$(date +%Y-%m-%d-%H-%M)
+echo &quot;Step: Create shop&quot;
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/ShopConfiguration/Scripts/createShop.pl -wsuser Providers/Distributor/Users/admin -passwd admin -shoptype UnityDE -storename Store -alias $SHOPNAME -scriptname $SHOPNAME
+export SHOPPATH=/Shops/$SHOPNAME
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/set.pl -storename Store -path $SHOPPATH MailFrom=p.domin@epages.com
+</command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers>
+    <hudson.plugins.emailext.ExtendedEmailPublisher plugin="email-ext@2.57.2">
+      <recipientList>p.domin@epages.com</recipientList>
+      <configuredTriggers>
+        <hudson.plugins.emailext.plugins.trigger.UnstableTrigger>
+          <email>
+            <subject>$PROJECT_DEFAULT_SUBJECT</subject>
+            <body>$PROJECT_DEFAULT_CONTENT</body>
+            <recipientProviders>
+              <hudson.plugins.emailext.plugins.recipients.ListRecipientProvider/>
+            </recipientProviders>
+            <attachmentsPattern></attachmentsPattern>
+            <attachBuildLog>false</attachBuildLog>
+            <compressBuildLog>false</compressBuildLog>
+            <contentType>project</contentType>
+          </email>
+        </hudson.plugins.emailext.plugins.trigger.UnstableTrigger>
+        <hudson.plugins.emailext.plugins.trigger.StillFailingTrigger>
+          <email>
+            <subject>$PROJECT_DEFAULT_SUBJECT</subject>
+            <body>$PROJECT_DEFAULT_CONTENT</body>
+            <recipientProviders>
+              <hudson.plugins.emailext.plugins.recipients.ListRecipientProvider/>
+            </recipientProviders>
+            <attachmentsPattern></attachmentsPattern>
+            <attachBuildLog>false</attachBuildLog>
+            <compressBuildLog>false</compressBuildLog>
+            <contentType>project</contentType>
+          </email>
+        </hudson.plugins.emailext.plugins.trigger.StillFailingTrigger>
+        <hudson.plugins.emailext.plugins.trigger.StillUnstableTrigger>
+          <email>
+            <subject>$PROJECT_DEFAULT_SUBJECT</subject>
+            <body>$PROJECT_DEFAULT_CONTENT</body>
+            <recipientProviders>
+              <hudson.plugins.emailext.plugins.recipients.ListRecipientProvider/>
+            </recipientProviders>
+            <attachmentsPattern></attachmentsPattern>
+            <attachBuildLog>false</attachBuildLog>
+            <compressBuildLog>false</compressBuildLog>
+            <contentType>project</contentType>
+          </email>
+        </hudson.plugins.emailext.plugins.trigger.StillUnstableTrigger>
+        <hudson.plugins.emailext.plugins.trigger.FailureTrigger>
+          <email>
+            <subject>$PROJECT_DEFAULT_SUBJECT</subject>
+            <body>$PROJECT_DEFAULT_CONTENT</body>
+            <recipientProviders>
+              <hudson.plugins.emailext.plugins.recipients.ListRecipientProvider/>
+            </recipientProviders>
+            <attachmentsPattern></attachmentsPattern>
+            <attachBuildLog>false</attachBuildLog>
+            <compressBuildLog>false</compressBuildLog>
+            <contentType>project</contentType>
+          </email>
+        </hudson.plugins.emailext.plugins.trigger.FailureTrigger>
+      </configuredTriggers>
+      <contentType>text/plain</contentType>
+      <defaultSubject>[CI][${FILE, path=&quot;/tmp/cvs_branch&quot;}] ${PROJECT_NAME}: ${BUILD_STATUS}</defaultSubject>
+      <defaultContent>Node: ${ENV, var=&quot;NODE_NAME&quot;}
+Branch: ${FILE, path=&quot;/tmp/cvs_branch&quot;}
+Build: ${BUILD_NUMBER} - ${BUILD_URL}
+
+Build log:
+${BUILD_LOG, maxLines=100, escapeHtml=0}</defaultContent>
+      <attachmentsPattern></attachmentsPattern>
+      <presendScript></presendScript>
+      <postsendScript></postsendScript>
+      <attachBuildLog>false</attachBuildLog>
+      <compressBuildLog>false</compressBuildLog>
+      <replyTo></replyTo>
+      <saveOutput>false</saveOutput>
+      <disabled>false</disabled>
+    </hudson.plugins.emailext.ExtendedEmailPublisher>
+    <com.chikli.hudson.plugin.naginator.NaginatorPublisher plugin="naginator@1.17.2">
+      <regexpForRerun>java.io.IOException</regexpForRerun>
+      <rerunIfUnstable>true</rerunIfUnstable>
+      <rerunMatrixPart>false</rerunMatrixPart>
+      <checkRegexp>true</checkRegexp>
+      <regexpForMatrixStrategy>TestParent</regexpForMatrixStrategy>
+      <delay class="com.chikli.hudson.plugin.naginator.ProgressiveDelay">
+        <increment>300</increment>
+        <max>10800</max>
+      </delay>
+      <maxSchedule>0</maxSchedule>
+    </com.chikli.hudson.plugin.naginator.NaginatorPublisher>
+  </publishers>
+  <buildWrappers>
+    <hudson.plugins.timestamper.TimestamperBuildWrapper plugin="timestamper@1.8.8"/>
+  </buildWrappers>
+</project>

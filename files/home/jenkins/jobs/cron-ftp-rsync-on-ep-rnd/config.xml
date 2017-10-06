@@ -1,0 +1,75 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description>&lt;b&gt;This cronjob synchronizes:&#xd;
+  &lt;ul&gt;&#xd;
+    &lt;li&gt;&lt;a href=&quot;ftp://ftp.epages.de/pub/incoming/&quot;&gt;ftp://ftp.epages.de/pub/incoming/&lt;/a&gt; &amp;hArr; &lt;a href=&quot;http://ep-rnd.intern.epages.de:8888/ftp/incoming/&quot;&gt;\\ep-rnd\ftp\incoming&lt;/a&gt;&lt;/li&gt;&#xd;
+ 	&lt;li&gt;&lt;a href=&quot;ftp://ftp.epages.de/pub/outgoing/&quot;&gt;ftp://ftp.epages.de/pub/outgoing/&lt;/a&gt; &amp;hArr; &lt;a href=&quot;http://ep-rnd.intern.epages.de:8888/ftp/outgoing/&quot;&gt;\\ep-rnd\ftp\outgoing&lt;/a&gt;&lt;/li&gt;&#xd;
+  &lt;/ul&gt;&#xd;
+  &lt;p/&gt;&#xd;
+  and runs Sophos AV every time.&#xd;
+  &lt;p/&gt;&#xd;
+  See &lt;a href=&quot;https://epages.atlassian.net/wiki/display/TO/Exchange+Files+with+Customers&quot;&gt;Exchange Files with Customers&lt;/a&gt;.&#xd;
+&lt;/b&gt;</description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <jenkins.model.BuildDiscarderProperty>
+      <strategy class="hudson.tasks.LogRotator">
+        <daysToKeep>-1</daysToKeep>
+        <numToKeep>5</numToKeep>
+        <artifactDaysToKeep>-1</artifactDaysToKeep>
+        <artifactNumToKeep>-1</artifactNumToKeep>
+      </strategy>
+    </jenkins.model.BuildDiscarderProperty>
+    <hudson.plugins.buildblocker.BuildBlockerProperty plugin="build-blocker-plugin@1.7.3">
+      <useBuildBlocker>false</useBuildBlocker>
+      <blockLevel>GLOBAL</blockLevel>
+      <scanQueueFor>DISABLED</scanQueueFor>
+      <blockingJobs></blockingJobs>
+    </hudson.plugins.buildblocker.BuildBlockerProperty>
+    <com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty plugin="naginator@1.17.2">
+      <optOut>false</optOut>
+    </com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty>
+    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.25">
+      <autoRebuild>false</autoRebuild>
+      <rebuildDisabled>false</rebuildDisabled>
+    </com.sonyericsson.rebuild.RebuildSettings>
+    <de.pellepelster.jenkins.walldisplay.WallDisplayJobProperty plugin="jenkinswalldisplay@0.6.30"/>
+  </properties>
+  <scm class="hudson.scm.NullSCM"/>
+  <assignedNode>ep-rnd.intern.epages.de</assignedNode>
+  <canRoam>false</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers>
+    <hudson.triggers.TimerTrigger>
+      <spec>H/5 6-21 * * 1-5
+</spec>
+    </hudson.triggers.TimerTrigger>
+  </triggers>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command># Deploy epages-infra
+#!/bin/bash
+if [[ ! -d ~/epages-infra/.git ]] ; then
+    echo &apos;Deploying repo epages-infra...&apos;
+    cd ~
+    git clone git@github.com:ePages-de/epages-infra.git
+else
+    echo &apos;Updating master branch of repo epages-infra...&apos;
+    cd ~/epages-infra &amp;&amp; git pull origin dev
+fi</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+/opt/sophos-av/bin/savscan -f -all -rec -remove -nc /export/share/ftp/outgoing
+HOME=/root ~/epages-infra/scripts/ftp-rsync/ftp-rsync.sh
+/opt/sophos-av/bin/savscan -f -all -rec -remove -nc /export/share/ftp/incoming
+</command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers/>
+  <buildWrappers/>
+</project>

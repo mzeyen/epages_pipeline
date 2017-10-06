@@ -1,0 +1,160 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description></description>
+  <logRotator class="hudson.tasks.LogRotator">
+    <daysToKeep>60</daysToKeep>
+    <numToKeep>-1</numToKeep>
+    <artifactDaysToKeep>-1</artifactDaysToKeep>
+    <artifactNumToKeep>-1</artifactNumToKeep>
+  </logRotator>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <hudson.plugins.buildblocker.BuildBlockerProperty plugin="build-blocker-plugin@1.7.3">
+      <useBuildBlocker>false</useBuildBlocker>
+      <blockLevel>GLOBAL</blockLevel>
+      <scanQueueFor>DISABLED</scanQueueFor>
+      <blockingJobs></blockingJobs>
+    </hudson.plugins.buildblocker.BuildBlockerProperty>
+    <jenkins.advancedqueue.AdvancedQueueSorterJobProperty plugin="PrioritySorter@2.9">
+      <useJobPriority>false</useJobPriority>
+      <priority>-1</priority>
+    </jenkins.advancedqueue.AdvancedQueueSorterJobProperty>
+    <com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty plugin="naginator@1.17">
+      <optOut>false</optOut>
+    </com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>SNAPSHOT_NAME_SAVE</name>
+          <description>Set snapshot name for downstream project.</description>
+          <defaultValue>BASE</defaultValue>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.25">
+      <autoRebuild>false</autoRebuild>
+      <rebuildDisabled>false</rebuildDisabled>
+    </com.sonyericsson.rebuild.RebuildSettings>
+    <de.pellepelster.jenkins.walldisplay.WallDisplayJobProperty plugin="jenkinswalldisplay@0.6.30">
+      <wallDisplayName>Install AM like distributed installation on 5 hosts with CentOS</wallDisplayName>
+    </de.pellepelster.jenkins.walldisplay.WallDisplayJobProperty>
+    <EnvInjectJobProperty plugin="envinject@1.92.1">
+      <info>
+        <propertiesContent>VM_WA_1=cd-di-wa1.vm-intern.epages.com
+VM_WA_2=cd-di-wa2.vm-intern.epages.com
+VM_DB=cd-di-db.vm-intern.epages.com
+VM_SB=cd-di-sb.vm-intern.epages.com
+VM_NLB=cd-di-nlb.vm-intern.epages.com</propertiesContent>
+        <loadFilesFromMaster>false</loadFilesFromMaster>
+      </info>
+      <on>true</on>
+      <keepJenkinsSystemVariables>true</keepJenkinsSystemVariables>
+      <keepBuildVariables>true</keepBuildVariables>
+      <overrideBuildParameters>false</overrideBuildParameters>
+      <contributors/>
+    </EnvInjectJobProperty>
+  </properties>
+  <scm class="hudson.scm.NullSCM"/>
+  <assignedNode>cd-vm-docker-host-001</assignedNode>
+  <canRoam>false</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers/>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+
+# Switch to &apos;stable&apos; as soon as we have a stable image version.
+export DOCKER_IMAGE_NAME=&apos;docker.epages.com/capistrano&apos;
+export DOCKER_IMAGE_TAG=&apos;dev&apos;
+export DOCKER_CONTAINER_NAME=&apos;capistrano_prepare_standard_DI&apos;
+
+echo -e &quot;=== Pull image [&quot;${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}&quot;] from ePages registry ====\n\n&quot;
+docker pull &quot;${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}&quot; || exit 1
+
+echo -e &quot;=== Run container [${DOCKER_CONTAINER_NAME}] and prepare all DI hosts as root user ====\n\n&quot;
+docker run --rm \
+  --name=&quot;${DOCKER_CONTAINER_NAME}&quot; \
+  -e EPAGES_VERSION=6.17.29 \
+  -e CONNECT_AS_ROOT=1 \
+  &quot;${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}&quot; \
+  bundle exec cap vmdistributed standard:preparation:run || exit 1
+
+echo -e &quot;=== Stop container [${DOCKER_CONTAINER_NAME}] if still running ====\n\n&quot;
+docker ps | grep -q ${DOCKER_CONTAINER_NAME} &amp;&amp; docker stop ${DOCKER_CONTAINER_NAME} || echo &quot;Container [${DOCKER_CONTAINER_NAME}] has already been stopped.&quot;
+
+echo -e &quot;=== Remove container [${DOCKER_CONTAINER_NAME}] if exists ====\n\n&quot;
+docker ps -a | grep -q ${DOCKER_CONTAINER_NAME} &amp;&amp; docker rm -f ${DOCKER_CONTAINER_NAME} || echo &quot;Container [${DOCKER_CONTAINER_NAME}] does not exist.&quot;</command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers>
+    <hudson.plugins.parameterizedtrigger.BuildTrigger plugin="parameterized-trigger@2.30">
+      <configs>
+        <hudson.plugins.parameterizedtrigger.BuildTriggerConfig>
+          <configs>
+            <hudson.plugins.parameterizedtrigger.PredefinedBuildParameters>
+              <properties>SNAPSHOT_NAME=${SNAPSHOT_NAME_SAVE}
+VM_NAME=${VM_WA_1}</properties>
+            </hudson.plugins.parameterizedtrigger.PredefinedBuildParameters>
+          </configs>
+          <projects>create_snapshot_vcenter</projects>
+          <condition>SUCCESS</condition>
+          <triggerWithNoParameters>false</triggerWithNoParameters>
+        </hudson.plugins.parameterizedtrigger.BuildTriggerConfig>
+        <hudson.plugins.parameterizedtrigger.BuildTriggerConfig>
+          <configs>
+            <hudson.plugins.parameterizedtrigger.PredefinedBuildParameters>
+              <properties>SNAPSHOT_NAME=${SNAPSHOT_NAME_SAVE}
+VM_NAME=${VM_WA_2}</properties>
+            </hudson.plugins.parameterizedtrigger.PredefinedBuildParameters>
+          </configs>
+          <projects>create_snapshot_vcenter</projects>
+          <condition>SUCCESS</condition>
+          <triggerWithNoParameters>false</triggerWithNoParameters>
+        </hudson.plugins.parameterizedtrigger.BuildTriggerConfig>
+        <hudson.plugins.parameterizedtrigger.BuildTriggerConfig>
+          <configs>
+            <hudson.plugins.parameterizedtrigger.PredefinedBuildParameters>
+              <properties>SNAPSHOT_NAME=${SNAPSHOT_NAME_SAVE}
+VM_NAME=${VM_DB}</properties>
+            </hudson.plugins.parameterizedtrigger.PredefinedBuildParameters>
+          </configs>
+          <projects>create_snapshot_vcenter</projects>
+          <condition>SUCCESS</condition>
+          <triggerWithNoParameters>false</triggerWithNoParameters>
+        </hudson.plugins.parameterizedtrigger.BuildTriggerConfig>
+        <hudson.plugins.parameterizedtrigger.BuildTriggerConfig>
+          <configs>
+            <hudson.plugins.parameterizedtrigger.PredefinedBuildParameters>
+              <properties>SNAPSHOT_NAME=${SNAPSHOT_NAME_SAVE}
+VM_NAME=${VM_SB}</properties>
+            </hudson.plugins.parameterizedtrigger.PredefinedBuildParameters>
+          </configs>
+          <projects>create_snapshot_vcenter</projects>
+          <condition>SUCCESS</condition>
+          <triggerWithNoParameters>false</triggerWithNoParameters>
+        </hudson.plugins.parameterizedtrigger.BuildTriggerConfig>
+        <hudson.plugins.parameterizedtrigger.BuildTriggerConfig>
+          <configs>
+            <hudson.plugins.parameterizedtrigger.PredefinedBuildParameters>
+              <properties>SNAPSHOT_NAME=${SNAPSHOT_NAME_SAVE}
+VM_NAME=${VM_NLB}</properties>
+            </hudson.plugins.parameterizedtrigger.PredefinedBuildParameters>
+          </configs>
+          <projects>create_snapshot_vcenter</projects>
+          <condition>SUCCESS</condition>
+          <triggerWithNoParameters>false</triggerWithNoParameters>
+        </hudson.plugins.parameterizedtrigger.BuildTriggerConfig>
+      </configs>
+    </hudson.plugins.parameterizedtrigger.BuildTrigger>
+  </publishers>
+  <buildWrappers>
+    <hudson.plugins.ansicolor.AnsiColorBuildWrapper plugin="ansicolor@0.4.2">
+      <colorMapName>xterm</colorMapName>
+    </hudson.plugins.ansicolor.AnsiColorBuildWrapper>
+    <hudson.plugins.timestamper.TimestamperBuildWrapper plugin="timestamper@1.8.2"/>
+  </buildWrappers>
+</project>

@@ -1,0 +1,260 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<matrix-project plugin="matrix-project@1.6">
+  <actions/>
+  <description></description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <jenkins.model.BuildDiscarderProperty>
+      <strategy class="hudson.tasks.LogRotator">
+        <daysToKeep>60</daysToKeep>
+        <numToKeep>-1</numToKeep>
+        <artifactDaysToKeep>-1</artifactDaysToKeep>
+        <artifactNumToKeep>-1</artifactNumToKeep>
+      </strategy>
+    </jenkins.model.BuildDiscarderProperty>
+    <hudson.plugins.buildblocker.BuildBlockerProperty plugin="build-blocker-plugin@1.7.3">
+      <useBuildBlocker>false</useBuildBlocker>
+      <blockLevel>UNDEFINED</blockLevel>
+      <scanQueueFor>DISABLED</scanQueueFor>
+      <blockingJobs></blockingJobs>
+    </hudson.plugins.buildblocker.BuildBlockerProperty>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>TARGET_HOST</name>
+          <description></description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.BooleanParameterDefinition>
+          <name>USE_DOMAIN</name>
+          <description>If true, a shop domain will be used for the ESF tests.</description>
+          <defaultValue>false</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>VERSION</name>
+          <description></description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>REPO</name>
+          <description></description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+    <hudson.queueSorter.PrioritySorterJobProperty plugin="PrioritySorter@2.9">
+      <priority>100</priority>
+    </hudson.queueSorter.PrioritySorterJobProperty>
+    <com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty plugin="naginator@1.17">
+      <optOut>false</optOut>
+    </com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty>
+    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.25">
+      <autoRebuild>false</autoRebuild>
+      <rebuildDisabled>false</rebuildDisabled>
+    </com.sonyericsson.rebuild.RebuildSettings>
+    <de.pellepelster.jenkins.walldisplay.WallDisplayJobProperty plugin="jenkinswalldisplay@0.6.30"/>
+    <EnvInjectJobProperty plugin="envinject@1.92.1">
+      <info>
+        <propertiesContent>TO_LOGSTASH_IMAGE_NAME=epages/to-logstash
+TO_LOGSTASH_IMAGE_TAG=latest</propertiesContent>
+        <loadFilesFromMaster>false</loadFilesFromMaster>
+      </info>
+      <on>true</on>
+      <keepJenkinsSystemVariables>true</keepJenkinsSystemVariables>
+      <keepBuildVariables>true</keepBuildVariables>
+      <overrideBuildParameters>false</overrideBuildParameters>
+      <contributors/>
+    </EnvInjectJobProperty>
+  </properties>
+  <scm class="hudson.plugins.git.GitSCM" plugin="git@2.4.4">
+    <configVersion>2</configVersion>
+    <userRemoteConfigs>
+      <hudson.plugins.git.UserRemoteConfig>
+        <url>git@github.com:ePages-de/to-logstash.git</url>
+        <credentialsId>c24e751f-8d24-4c11-b02e-a6428c3f88b7</credentialsId>
+      </hudson.plugins.git.UserRemoteConfig>
+    </userRemoteConfigs>
+    <branches>
+      <hudson.plugins.git.BranchSpec>
+        <name>*/master</name>
+      </hudson.plugins.git.BranchSpec>
+    </branches>
+    <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+    <submoduleCfg class="list"/>
+    <extensions>
+      <hudson.plugins.git.extensions.impl.RelativeTargetDirectory>
+        <relativeTargetDir>to-logstash</relativeTargetDir>
+      </hudson.plugins.git.extensions.impl.RelativeTargetDirectory>
+    </extensions>
+  </scm>
+  <quietPeriod>0</quietPeriod>
+  <canRoam>true</canRoam>
+  <disabled>true</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers/>
+  <concurrentBuild>true</concurrentBuild>
+  <axes>
+    <hudson.matrix.LabelExpAxis>
+      <name>browser</name>
+      <values>
+        <string>firefox</string>
+        <string>safari</string>
+        <string>chrome</string>
+      </values>
+    </hudson.matrix.LabelExpAxis>
+    <hudson.matrix.TextAxis>
+      <name>groups_to_test</name>
+      <values>
+        <string>CORE</string>
+        <string>SEARCH</string>
+      </values>
+    </hudson.matrix.TextAxis>
+  </axes>
+  <combinationFilter>!(browser==&quot;safari&quot; || browser==&quot;chrome&quot;)</combinationFilter>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+
+if [[ -d esf ]] ; then rm -Rf esf ; fi
+</command>
+    </hudson.tasks.Shell>
+    <hudson.plugins.copyartifact.CopyArtifact plugin="copyartifact@1.37">
+      <project>ESF publish pre-release-development version</project>
+      <filter>build/distributions/esf-epages6-*.*.*-SNAPSHOT.zip</filter>
+      <target>esf</target>
+      <excludes></excludes>
+      <selector class="hudson.plugins.copyartifact.StatusBuildSelector">
+        <stable>true</stable>
+      </selector>
+      <flatten>true</flatten>
+      <doNotFingerprintArtifacts>false</doNotFingerprintArtifacts>
+    </hudson.plugins.copyartifact.CopyArtifact>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+export DISPLAY=&quot;:0&quot;
+
+DOMAIN_PREFIX=&apos;cdp-esf-test&apos;
+SHOP_DOMAIN=&quot;${DOMAIN_PREFIX}-${browser}-${groups_to_test}.vm-intern.epages.com&quot;
+
+ESF_PARAMETERS=&quot;-browser ${browser} -groups ${groups_to_test} -shop esf-auat-${browser}-${groups_to_test} -url http://${TARGET_HOST}/epages --retry&quot;
+if [[ ${USE_DOMAIN} == &apos;true&apos; ]] ; then ESF_PARAMETERS=&quot;${ESF_PARAMETERS} --shop-domain ${SHOP_DOMAIN}&quot; ; fi
+
+if [[ -r /usr/lib/jvm/java-7-openjdk/jre/bin/java ]] ; then export JAVA_HOME=&apos;/usr/lib/jvm/java-7-openjdk/jre&apos; ; fi
+if [[ -r /tmp/emailable-report.html ]] ; then rm -fv /tmp/emailable-report.html ; fi
+cd esf || exit 1
+ESF_ZIP_FILE=&quot;`find . -name &quot;esf-*.zip&quot; -type f | sort -r | head -n1`&quot;
+ESF_STRING=&quot;`echo ${ESF_ZIP_FILE} | sed -e &apos;s/.zip//&apos;`&quot;
+unzip &quot;${ESF_ZIP_FILE}&quot;
+cd &quot;${ESF_STRING}&quot; || exit 1
+if [[ -x bin/esf-epages6 ]] ; then
+   sleep_time=$(shuf -i 0-90 -n 1)
+   echo &quot;Sleeping $sleep_time seconds to prevent multiple threads doing exactly the same thing at the same time.&quot;
+   # Workaround for problem with empty line item tables
+   sleep $sleep_time 
+
+   echo &quot;Starting ESF: bin/esf-epages6 ${ESF_PARAMETERS}&quot;
+   bin/esf-epages6 ${ESF_PARAMETERS}
+else
+   exit 1
+fi
+EXIT_CODE_ESF=&quot;$?&quot;
+
+for RESULT_FILE in `find &quot;./log/&quot; -name &quot;emailable-report.html&quot; -type f | sort | tail -n1` ; do cp -vf &quot;$RESULT_FILE&quot; /tmp/. ; done
+
+EXIT_CODE_LOGSTASH=0
+
+if [[ -z $VERSION ]] ; then echo &apos;$VERSION is empty.&apos; ; exit 1 ; fi
+if [[ -z $REPO ]] ; then echo &apos;$REPO is empty.&apos;; exit 1 ; fi
+if [[ -z $ENV_TYPE ]] ; then echo &apos;$ENV_TYPE is empty.&apos; ; exit 1 ; fi
+if [[ -z $ENV_IDENTIFIER ]] ; then echo &apos;$ENV_IDENTIFIER is empty.&apos; ; exit 1 ; fi
+if [[ -z $ENV_OS ]] ; then echo &apos;$ENV_OS is empty.&apos; ; exit 1 ; fi
+
+    # push the esf-test-results.json to our elasticsearch server via logstash docker container
+    
+    ############
+    # logstash #
+    ############
+    
+    # mount dirs
+    export LS_LOG=&quot;$(find ${WORKSPACE} -mindepth 3 -maxdepth 3 -name &quot;log&quot; -type d)&quot;
+    export LS_CONFIG=&quot;${WORKSPACE}/to-logstash/config&quot;
+    
+    # logstash.conf
+    export LS_INPUT=&quot;log,esf&quot;
+    export LS_OUTPUT=&quot;log,elasticsearch&quot;
+    
+    ###########
+    # esf env #
+    ###########
+    
+    # epages6
+    export EPAGES_VERSION=${VERSION}
+    export EPAGES_REPO_ID=${REPO}
+    
+    # env url to dir &quot;.../esf/.../log&quot;
+    export ENV_URL=&quot;${BUILD_URL}artifact/esf/${LS_LOG#*/esf/}&quot;
+    
+    #################
+    # elasticsearch #
+    #################
+    
+    # elasticsearch connection details
+    export ES_HOSTS=&quot;[ &apos;cd-vm-docker-host-001.intern.epages.de:9200&apos; ]&quot;
+    export ES_USER=&quot;admin&quot;
+    export ES_PASSWORD=&quot;qwert6&quot;
+    
+    # elasticsearch document path
+    export ES_INDEX=&quot;esf-cdp-ui-tests&quot;
+    
+    ##########
+    # docker #
+    ##########
+    
+    # docker container settings
+    export LS_DOCKER_CONTAINER=&quot;to-logstash-automated-ui-tests-core-search-${BUILD_NUMBER}&quot;
+    
+    # pull latest logstash image.   
+    set +x ; docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD} -e teamorange@epages.com ; set -x
+    docker pull ${TO_LOGSTASH_IMAGE_NAME}:${TO_LOGSTASH_IMAGE_TAG}
+    
+    # run logstash docker container
+    ${WORKSPACE}/to-logstash/deploy.sh || EXIT_CODE_LOGSTASH=1
+
+    # chown our workspace
+    sudo chown -R jenkins:jenkins &quot;${WORKSPACE}&quot; || EXIT_CODE_LOGSTASH=1
+
+if [[ ${EXIT_CODE_ESF} -ne 0 || ${EXIT_CODE_LOGSTASH} -ne 0 ]] ; then exit 1 ; fi</command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers>
+    <hudson.tasks.ArtifactArchiver>
+      <artifacts>esf/esf*/log/**</artifacts>
+      <allowEmptyArchive>false</allowEmptyArchive>
+      <onlyIfSuccessful>false</onlyIfSuccessful>
+      <fingerprint>false</fingerprint>
+      <defaultExcludes>true</defaultExcludes>
+      <caseSensitive>true</caseSensitive>
+    </hudson.tasks.ArtifactArchiver>
+    <org.jenkinsci.plugins.postbuildscript.PostBuildScript plugin="postbuildscript@0.17">
+      <buildSteps>
+        <hudson.tasks.Shell>
+          <command>sudo chown -R jenkins:jenkins &quot;${WORKSPACE}&quot;</command>
+        </hudson.tasks.Shell>
+      </buildSteps>
+      <scriptOnlyIfSuccess>false</scriptOnlyIfSuccess>
+      <scriptOnlyIfFailure>false</scriptOnlyIfFailure>
+      <markBuildUnstable>false</markBuildUnstable>
+      <executeOn>AXES</executeOn>
+    </org.jenkinsci.plugins.postbuildscript.PostBuildScript>
+  </publishers>
+  <buildWrappers>
+    <hudson.plugins.ansicolor.AnsiColorBuildWrapper plugin="ansicolor@0.4.2">
+      <colorMapName>xterm</colorMapName>
+    </hudson.plugins.ansicolor.AnsiColorBuildWrapper>
+    <hudson.plugins.timestamper.TimestamperBuildWrapper plugin="timestamper@1.8.2"/>
+  </buildWrappers>
+  <executionStrategy class="hudson.matrix.DefaultMatrixExecutionStrategyImpl">
+    <runSequentially>false</runSequentially>
+  </executionStrategy>
+</matrix-project>

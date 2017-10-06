@@ -1,0 +1,405 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description>&lt;ul&gt;&#xd;
+  &lt;li&gt;Test pull requests from github esf project.&lt;/li&gt;&#xd;
+  &lt;li&gt;Use two seperate docker images for building the esf distributable package and running the esf tests.&lt;/li&gt;&#xd;
+  &lt;li&gt;Parallel jenkins job execution.&lt;/li&gt;&#xd;
+&lt;/ul&gt;&#xd;
+&#xd;
+&lt;img src=&quot;http://glossi-media-us-west.s3-us-west-1.amazonaws.com/media/ff43d04e80c048958629e9fbe2c80f57hpINWL.gif&quot;/&gt;</description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <jenkins.model.BuildDiscarderProperty>
+      <strategy class="hudson.tasks.LogRotator">
+        <daysToKeep>28</daysToKeep>
+        <numToKeep>-1</numToKeep>
+        <artifactDaysToKeep>-1</artifactDaysToKeep>
+        <artifactNumToKeep>-1</artifactNumToKeep>
+      </strategy>
+    </jenkins.model.BuildDiscarderProperty>
+    <hudson.plugins.buildblocker.BuildBlockerProperty plugin="build-blocker-plugin@1.7.3">
+      <useBuildBlocker>false</useBuildBlocker>
+      <blockLevel>UNDEFINED</blockLevel>
+      <scanQueueFor>DISABLED</scanQueueFor>
+      <blockingJobs></blockingJobs>
+    </hudson.plugins.buildblocker.BuildBlockerProperty>
+    <com.coravy.hudson.plugins.github.GithubProjectProperty plugin="github@1.21.1">
+      <projectUrl>https://github.com/ePages-de/esf/</projectUrl>
+      <displayName></displayName>
+    </com.coravy.hudson.plugins.github.GithubProjectProperty>
+    <com.dabsquared.gitlabjenkins.connection.GitLabConnectionProperty plugin="gitlab-plugin@1.4.3">
+      <gitLabConnection>https://am-git.intern.epages.de/</gitLabConnection>
+    </com.dabsquared.gitlabjenkins.connection.GitLabConnectionProperty>
+    <com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty plugin="naginator@1.17.2">
+      <optOut>false</optOut>
+    </com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty>
+    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.25">
+      <autoRebuild>false</autoRebuild>
+      <rebuildDisabled>false</rebuildDisabled>
+    </com.sonyericsson.rebuild.RebuildSettings>
+    <de.pellepelster.jenkins.walldisplay.WallDisplayJobProperty plugin="jenkinswalldisplay@0.6.30"/>
+    <EnvInjectJobProperty plugin="envinject@2.0">
+      <info>
+        <propertiesContent>SHOP_NAME=esf-test-pr-${BUILD_NUMBER}
+SHOP_NAME_US=esf-test-pr-us-${BUILD_NUMBER}
+SHOP_NAME_ERP=esf-test-pr-erp-${BUILD_NUMBER}
+SHOP_TYPE_ERP=ERPDemo
+WORKDIR=/home/jenkins/jenkins/workspace/ESF_test_PR/${BUILD_NUMBER}</propertiesContent>
+        <secureGroovyScript plugin="script-security@1.27">
+          <script></script>
+          <sandbox>false</sandbox>
+        </secureGroovyScript>
+        <loadFilesFromMaster>false</loadFilesFromMaster>
+      </info>
+      <on>true</on>
+      <keepJenkinsSystemVariables>true</keepJenkinsSystemVariables>
+      <keepBuildVariables>true</keepBuildVariables>
+      <overrideBuildParameters>false</overrideBuildParameters>
+      <contributors/>
+    </EnvInjectJobProperty>
+  </properties>
+  <scm class="hudson.plugins.git.GitSCM" plugin="git@2.5.3">
+    <configVersion>2</configVersion>
+    <userRemoteConfigs>
+      <hudson.plugins.git.UserRemoteConfig>
+        <name>origin</name>
+        <refspec>+refs/pull/*:refs/remotes/origin/pr/*</refspec>
+        <url>git@github.com:ePages-de/esf.git</url>
+        <credentialsId>c24e751f-8d24-4c11-b02e-a6428c3f88b7</credentialsId>
+      </hudson.plugins.git.UserRemoteConfig>
+    </userRemoteConfigs>
+    <branches>
+      <hudson.plugins.git.BranchSpec>
+        <name>${sha1}</name>
+      </hudson.plugins.git.BranchSpec>
+    </branches>
+    <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+    <submoduleCfg class="list"/>
+    <extensions>
+      <hudson.plugins.git.extensions.impl.PathRestriction>
+        <includedRegions></includedRegions>
+        <excludedRegions>CHANGES
+README.md
+workflows.md</excludedRegions>
+      </hudson.plugins.git.extensions.impl.PathRestriction>
+      <hudson.plugins.git.extensions.impl.RelativeTargetDirectory>
+        <relativeTargetDir>${BUILD_NUMBER}</relativeTargetDir>
+      </hudson.plugins.git.extensions.impl.RelativeTargetDirectory>
+      <hudson.plugins.git.extensions.impl.PreBuildMerge>
+        <options>
+          <mergeRemote>origin</mergeRemote>
+          <mergeTarget>pre-release-development</mergeTarget>
+          <mergeStrategy>default</mergeStrategy>
+          <fastForwardMode>FF</fastForwardMode>
+        </options>
+      </hudson.plugins.git.extensions.impl.PreBuildMerge>
+    </extensions>
+  </scm>
+  <quietPeriod>1</quietPeriod>
+  <scmCheckoutRetryCount>3</scmCheckoutRetryCount>
+  <assignedNode>build-vm</assignedNode>
+  <canRoam>false</canRoam>
+  <disabled>true</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <authToken>zeweSweFeFrAxubUrayad2PaquBE2apR</authToken>
+  <triggers>
+    <org.jenkinsci.plugins.ghprb.GhprbTrigger plugin="ghprb@1.33.1">
+      <spec>H/2 * * * *</spec>
+      <latestVersion>3</latestVersion>
+      <configVersion>3</configVersion>
+      <adminlist>kayabendroth-epages</adminlist>
+      <allowMembersOfWhitelistedOrgsAsAdmin>false</allowMembersOfWhitelistedOrgsAsAdmin>
+      <orgslist>ePages-de</orgslist>
+      <cron>H/2 * * * *</cron>
+      <buildDescTemplate></buildDescTemplate>
+      <onlyTriggerPhrase>false</onlyTriggerPhrase>
+      <useGitHubHooks>false</useGitHubHooks>
+      <permitAll>true</permitAll>
+      <whitelist>dkrugle mkohl jmewes</whitelist>
+      <autoCloseFailedPullRequests>false</autoCloseFailedPullRequests>
+      <displayBuildErrorsOnDownstreamBuilds>false</displayBuildErrorsOnDownstreamBuilds>
+      <whiteListTargetBranches>
+        <org.jenkinsci.plugins.ghprb.GhprbBranch>
+          <branch></branch>
+        </org.jenkinsci.plugins.ghprb.GhprbBranch>
+      </whiteListTargetBranches>
+      <blackListTargetBranches>
+        <org.jenkinsci.plugins.ghprb.GhprbBranch>
+          <branch></branch>
+        </org.jenkinsci.plugins.ghprb.GhprbBranch>
+      </blackListTargetBranches>
+      <gitHubAuthId>07b6f4b6-06db-45b9-a194-081cf1336d4d</gitHubAuthId>
+      <triggerPhrase></triggerPhrase>
+      <skipBuildPhrase>.*\[skip\W+ci\].*</skipBuildPhrase>
+      <extensions>
+        <org.jenkinsci.plugins.ghprb.extensions.status.GhprbSimpleStatus>
+          <commitStatusContext></commitStatusContext>
+          <triggeredStatus></triggeredStatus>
+          <startedStatus></startedStatus>
+          <statusUrl></statusUrl>
+          <addTestResults>false</addTestResults>
+        </org.jenkinsci.plugins.ghprb.extensions.status.GhprbSimpleStatus>
+      </extensions>
+    </org.jenkinsci.plugins.ghprb.GhprbTrigger>
+  </triggers>
+  <concurrentBuild>true</concurrentBuild>
+  <customWorkspace>/home/jenkins/jenkins/workspace/ESF_test_PR</customWorkspace>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash -e
+
+# Make dir and change to dir with build number.
+mkdir -p ${WORKDIR}
+cd ${WORKDIR}
+
+# Get the latest commit ID from upstream repo where branch originated from.
+export TOP_OF_UPSTREAM=`git merge-base HEAD origin/pre-release-development`
+
+# Generate the list of changed files.
+echo -n &apos;&apos; &gt; &quot;${WORKDIR}/changed_files_in_pr.txt&quot;
+git diff --name-only --numstat HEAD &quot;${TOP_OF_UPSTREAM}&quot; | sort --unique &gt;&gt; &quot;${WORKDIR}/changed_files_in_pr.txt&quot;
+
+# Log the list of changed files.
+echo &apos; ---&gt; The list of changed files in PR:&apos;
+cat &quot;${WORKDIR}/changed_files_in_pr.txt&quot;
+
+# Generate the list of affected tests.
+echo &apos;Testing Python script...&apos;
+python &quot;${WORKDIR}/get_affected_tests.py&quot; -f &quot;${WORKDIR}/changed_files_in_pr.txt&quot; -p &quot;${WORKDIR}&quot; || exit 1
+echo -n &apos;TEST_CLASSES=&apos; &gt; &quot;${WORKDIR}/affected_tests_by_pr.properties&quot;
+python &quot;${WORKDIR}/get_affected_tests.py&quot; -f &quot;${WORKDIR}/changed_files_in_pr.txt&quot; -p &quot;${WORKDIR}&quot; | xargs echo | sed -e &apos;s| |,|g&apos; &gt;&gt; &quot;${WORKDIR}/affected_tests_by_pr.properties&quot;
+
+# Log the list of affected tests.
+echo &apos; ---&gt; The list of affected tests by PR:&apos;
+cat &quot;${WORKDIR}/affected_tests_by_pr.properties&quot;</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash -e
+
+# Build ESF distribution package via JDK Docker image from registry.
+docker pull kayabendroth/oracle-jdk8-fontconfig-freetype
+cd ${WORKDIR}
+docker run --rm -t -v ${WORKDIR}:/opt/build kayabendroth/oracle-jdk8-fontconfig-freetype:latest /bin/bash -c &apos;cd /opt/build; ./gradlew clean dist&apos;
+RET_VAL=&quot;$?&quot;
+if [[ &quot;${USER}&quot; != &apos;root&apos;  ]] ; then
+    sudo chown -R ${USER}:${USER} &quot;${WORKDIR}&quot;
+fi
+echo &quot;Finished building ESF distribution package in ${WORKDIR}/build.&quot;
+exit &quot;${RET_VAL}&quot;</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command># Build ESF docker image for test run.
+cd ${WORKDIR}
+docker build --tag=docker.epages.com/esf:testpr${BUILD_NUMBER} .</command>
+    </hudson.tasks.Shell>
+    <org.jenkinsci.plugins.conditionalbuildstep.ConditionalBuilder plugin="conditional-buildstep@1.3.5">
+      <runner class="org.jenkins_ci.plugins.run_condition.BuildStepRunner$Fail" plugin="run-condition@1.0"/>
+      <runCondition class="org.jenkins_ci.plugins.run_condition.contributed.ShellCondition" plugin="run-condition@1.0">
+        <command>#!/bin/bash
+source &quot;${WORKDIR}/affected_tests_by_pr.properties&quot;
+
+if [[ -z &quot;${TEST_CLASSES}&quot; ]]; then
+    echo &quot;No test classes affected. Exiting now.&quot;
+    exit 1
+fi
+</command>
+      </runCondition>
+      <conditionalbuilders>
+        <hudson.plugins.parameterizedtrigger.TriggerBuilder plugin="parameterized-trigger@2.32">
+          <configs>
+            <hudson.plugins.parameterizedtrigger.BlockableBuildTriggerConfig>
+              <configs>
+                <hudson.plugins.parameterizedtrigger.PredefinedBuildParameters>
+                  <properties>SHOP_NAME=${SHOP_NAME_US}</properties>
+                </hudson.plugins.parameterizedtrigger.PredefinedBuildParameters>
+              </configs>
+              <projects>Create_developer_shop_at_unstable-main</projects>
+              <condition>ALWAYS</condition>
+              <triggerWithNoParameters>false</triggerWithNoParameters>
+              <block>
+                <buildStepFailureThreshold>
+                  <name>FAILURE</name>
+                  <ordinal>2</ordinal>
+                  <color>RED</color>
+                  <completeBuild>true</completeBuild>
+                </buildStepFailureThreshold>
+                <unstableThreshold>
+                  <name>UNSTABLE</name>
+                  <ordinal>1</ordinal>
+                  <color>YELLOW</color>
+                  <completeBuild>true</completeBuild>
+                </unstableThreshold>
+                <failureThreshold>
+                  <name>FAILURE</name>
+                  <ordinal>2</ordinal>
+                  <color>RED</color>
+                  <completeBuild>true</completeBuild>
+                </failureThreshold>
+              </block>
+              <buildAllNodesWithLabel>false</buildAllNodesWithLabel>
+            </hudson.plugins.parameterizedtrigger.BlockableBuildTriggerConfig>
+          </configs>
+        </hudson.plugins.parameterizedtrigger.TriggerBuilder>
+        <hudson.plugins.parameterizedtrigger.TriggerBuilder plugin="parameterized-trigger@2.32">
+          <configs>
+            <hudson.plugins.parameterizedtrigger.BlockableBuildTriggerConfig>
+              <configs>
+                <hudson.plugins.parameterizedtrigger.PredefinedBuildParameters>
+                  <properties>SHOP_NAME=${SHOP_NAME_ERP}
+SHOP_TYPE=${SHOP_TYPE_ERP}
+</properties>
+                </hudson.plugins.parameterizedtrigger.PredefinedBuildParameters>
+              </configs>
+              <projects>Create_developer_shop_at_unstable-main</projects>
+              <condition>ALWAYS</condition>
+              <triggerWithNoParameters>false</triggerWithNoParameters>
+              <block>
+                <buildStepFailureThreshold>
+                  <name>FAILURE</name>
+                  <ordinal>2</ordinal>
+                  <color>RED</color>
+                  <completeBuild>true</completeBuild>
+                </buildStepFailureThreshold>
+                <unstableThreshold>
+                  <name>UNSTABLE</name>
+                  <ordinal>1</ordinal>
+                  <color>YELLOW</color>
+                  <completeBuild>true</completeBuild>
+                </unstableThreshold>
+                <failureThreshold>
+                  <name>FAILURE</name>
+                  <ordinal>2</ordinal>
+                  <color>RED</color>
+                  <completeBuild>true</completeBuild>
+                </failureThreshold>
+              </block>
+              <buildAllNodesWithLabel>false</buildAllNodesWithLabel>
+            </hudson.plugins.parameterizedtrigger.BlockableBuildTriggerConfig>
+          </configs>
+        </hudson.plugins.parameterizedtrigger.TriggerBuilder>
+      </conditionalbuilders>
+    </org.jenkinsci.plugins.conditionalbuildstep.ConditionalBuilder>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+
+# Run tests within ESF docker image with list of ESF tests to run.
+mkdir -p &quot;${WORKDIR}/log&quot;
+source &quot;${WORKDIR}/affected_tests_by_pr.properties&quot;
+
+if [[ -z &quot;${TEST_CLASSES}&quot; ]]; then
+    mkdir -p &quot;${WORKDIR}/log/${BUILD_ID}&quot;
+    echo &quot;No test classes affected.&quot; &gt; &quot;${WORKDIR}/log/${BUILD_ID}/no_test_classes_affected.txt&quot;
+    exit 0
+fi
+
+SHARED_PARAMETERS=&quot;--rm --privileged --user=root --env DBUS_SESSION_BUS_ADDRESS=/dev/null --cap-add=SYS_ADMIN -v /dev/shm:/dev/shm -v ${WORKDIR}/log:/home/esf/esf/log -t docker.epages.com/esf:testpr${BUILD_NUMBER}&quot;
+SHARED_PARAMETERS=&quot;${SHARED_PARAMETERS} -browser chrome -url https://unstable-main.epages.com/epages --restart-browser&quot;
+
+echo &quot;docker run ${SHARED_PARAMETERS} -tc $TEST_CLASSES -groups CORE,SEARCH -ap 0 -sp&quot;
+docker run ${SHARED_PARAMETERS} -tc $TEST_CLASSES -groups CORE,SEARCH -ap 0 -sp
+RET_VAL_ONE=&quot;$?&quot;
+
+echo &quot;docker run ${SHARED_PARAMETERS} -shop ${SHOP_NAME_ERP} -tc $TEST_CLASSES -groups ERPShop -ap 0 -sp&quot;
+docker run ${SHARED_PARAMETERS} -shop ${SHOP_NAME_ERP} -tc $TEST_CLASSES -groups ERPShop -ap 0 -sp
+RET_VAL_TWO=&quot;$?&quot;
+
+echo &quot;docker run ${SHARED_PARAMETERS} -shop ${SHOP_NAME_US} -tc $TEST_CLASSES -groups USTAX&quot;
+docker run ${SHARED_PARAMETERS} -shop ${SHOP_NAME_US} -tc $TEST_CLASSES -groups USTAX
+RET_VAL_THREE=&quot;$?&quot;
+
+echo &quot;docker run ${SHARED_PARAMETERS} -shop ${SHOP_NAME_US} -tc $TEST_CLASSES -groups US&quot;
+docker run ${SHARED_PARAMETERS} -shop ${SHOP_NAME_US} -tc $TEST_CLASSES -groups US
+RET_VAL_FOUR=&quot;$?&quot;
+
+if [[ &quot;${USER}&quot; != &apos;root&apos; ]] ; then
+    sudo chown -R ${USER}:${USER} &quot;${WORKDIR}/log&quot;
+fi
+if [[ ${RET_VAL_ONE} != 0 || ${RET_VAL_TWO} != 0 || ${RET_VAL_THREE} != 0 || ${RET_VAL_FOUR} != 0 ]] ; then
+    exit 1
+fi</command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers>
+    <hudson.tasks.ArtifactArchiver>
+      <artifacts>${BUILD_NUMBER}/log/**</artifacts>
+      <allowEmptyArchive>true</allowEmptyArchive>
+      <onlyIfSuccessful>false</onlyIfSuccessful>
+      <fingerprint>false</fingerprint>
+      <defaultExcludes>true</defaultExcludes>
+      <caseSensitive>true</caseSensitive>
+    </hudson.tasks.ArtifactArchiver>
+    <hudson.plugins.emailext.ExtendedEmailPublisher plugin="email-ext@2.57.2">
+      <recipientList>${ghprbActualCommitAuthorEmail}, ${ghprbPullAuthorEmail}, ${ghprbTriggerAuthorEmail}</recipientList>
+      <configuredTriggers>
+        <hudson.plugins.emailext.plugins.trigger.AlwaysTrigger>
+          <email>
+            <subject>$PROJECT_DEFAULT_SUBJECT</subject>
+            <body>$PROJECT_DEFAULT_CONTENT</body>
+            <recipientProviders>
+              <hudson.plugins.emailext.plugins.recipients.DevelopersRecipientProvider/>
+              <hudson.plugins.emailext.plugins.recipients.RequesterRecipientProvider/>
+              <hudson.plugins.emailext.plugins.recipients.ListRecipientProvider/>
+            </recipientProviders>
+            <attachmentsPattern></attachmentsPattern>
+            <attachBuildLog>false</attachBuildLog>
+            <compressBuildLog>false</compressBuildLog>
+            <replyTo>$PROJECT_DEFAULT_REPLYTO</replyTo>
+            <contentType>project</contentType>
+          </email>
+        </hudson.plugins.emailext.plugins.trigger.AlwaysTrigger>
+      </configuredTriggers>
+      <contentType>default</contentType>
+      <defaultSubject>${DEFAULT_SUBJECT}</defaultSubject>
+      <defaultContent>${DEFAULT_CONTENT}</defaultContent>
+      <attachmentsPattern></attachmentsPattern>
+      <presendScript></presendScript>
+      <postsendScript></postsendScript>
+      <attachBuildLog>false</attachBuildLog>
+      <compressBuildLog>false</compressBuildLog>
+      <replyTo></replyTo>
+      <saveOutput>false</saveOutput>
+      <disabled>false</disabled>
+    </hudson.plugins.emailext.ExtendedEmailPublisher>
+    <org.jenkinsci.plugins.postbuildscript.PostBuildScript plugin="postbuildscript@0.17">
+      <buildSteps>
+        <hudson.tasks.Shell>
+          <command>#!/bin/bash
+
+# Clean up
+if [[ &quot;${USER}&quot; != &apos;root&apos;  ]] ; then
+    echo &quot;sudo chown -R ${USER}:${USER} ${WORKDIR}&quot;
+    sudo chown -R ${USER}:${USER} &quot;${WORKDIR}&quot; || exit 1
+fi
+
+# Remove our working directory.
+if [[ -n &quot;${WORKDIR}&quot; &amp;&amp; &quot;${WORKDIR}&quot; != &apos;/&apos; ]] ; then
+    echo &quot;rm -rf ${WORKDIR}&quot;
+    rm -rf &quot;${WORKDIR}&quot; || exit 1
+fi
+
+# Housekeeping.
+# Remove all outdated Containers.
+echo &apos;Removing all Containers older than 48 hours...&apos;
+docker ps -a | grep -v &apos;CONTAINER ID&apos; | grep -v -E &apos; (seconds|minutes|hours) &apos; | awk &apos;{ print $1 }&apos; | sudo xargs docker rm -f ||
+# Remove all old and untagged Images.
+echo &apos;Removing Images older than 48 hours with names containing testpr, testfromforkedrepo and &lt;none&gt;...&apos;
+docker images | grep -E &apos;(testpr|testfromforkedrepo|&lt;none&gt;)&apos; | grep -v -E &apos; (seconds|minutes|hours) &apos; | awk &apos;{ print $3 }&apos; | sudo xargs docker rmi
+# We don&apos;t want the clean-up of old images to cause the Job to fail.
+exit 0</command>
+        </hudson.tasks.Shell>
+      </buildSteps>
+      <scriptOnlyIfSuccess>false</scriptOnlyIfSuccess>
+      <scriptOnlyIfFailure>false</scriptOnlyIfFailure>
+      <markBuildUnstable>false</markBuildUnstable>
+      <executeOn>BOTH</executeOn>
+    </org.jenkinsci.plugins.postbuildscript.PostBuildScript>
+  </publishers>
+  <buildWrappers>
+    <hudson.plugins.ansicolor.AnsiColorBuildWrapper plugin="ansicolor@0.5.0">
+      <colorMapName>xterm</colorMapName>
+    </hudson.plugins.ansicolor.AnsiColorBuildWrapper>
+    <hudson.plugins.timestamper.TimestamperBuildWrapper plugin="timestamper@1.8.8"/>
+  </buildWrappers>
+</project>

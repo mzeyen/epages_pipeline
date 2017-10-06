@@ -1,0 +1,114 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description></description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <hudson.plugins.buildblocker.BuildBlockerProperty plugin="build-blocker-plugin@1.7.3">
+      <useBuildBlocker>false</useBuildBlocker>
+      <blockLevel>GLOBAL</blockLevel>
+      <scanQueueFor>DISABLED</scanQueueFor>
+      <blockingJobs></blockingJobs>
+    </hudson.plugins.buildblocker.BuildBlockerProperty>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.ChoiceParameterDefinition>
+          <name>template</name>
+          <description>preinstalled os template</description>
+          <choices class="java.util.Arrays$ArrayList">
+            <a class="string-array">
+              <string>ep-orange-template-centos7</string>
+              <string>ep-orange-template-debian8</string>
+            </a>
+          </choices>
+        </hudson.model.ChoiceParameterDefinition>
+        <hudson.model.ChoiceParameterDefinition>
+          <name>vm_name</name>
+          <description>name of vm to create</description>
+          <choices class="java.util.Arrays$ArrayList">
+            <a class="string-array">
+              <string>to-install-centos7-02</string>
+              <string>to-install-centos7-03</string>
+              <string>to-install-centos7-04</string>
+              <string>to-install-centos7-05</string>
+              <string>to-install-centos7-06</string>
+              <string>to-install-centos7-07</string>
+              <string>to-install-centos7-08</string>
+              <string>to-install-centos7-09</string>
+              <string>to-install-centos7-10</string>
+              <string>to-install-debian8-05</string>
+              <string>to-install-debian8-06</string>
+              <string>to-install-debian8-07</string>
+              <string>to-install-debian8-08</string>
+              <string>to-install-debian8-09</string>
+              <string>to-install-debian8-10</string>
+            </a>
+          </choices>
+        </hudson.model.ChoiceParameterDefinition>
+        <hudson.model.BooleanParameterDefinition>
+          <name>delete_if_exists</name>
+          <description>delete vm if already exists</description>
+          <defaultValue>true</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+    <com.dabsquared.gitlabjenkins.connection.GitLabConnectionProperty plugin="gitlab-plugin@1.4.3">
+      <gitLabConnection>https://am-git.intern.epages.de/</gitLabConnection>
+    </com.dabsquared.gitlabjenkins.connection.GitLabConnectionProperty>
+    <com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty plugin="naginator@1.17.2">
+      <optOut>false</optOut>
+    </com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty>
+    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.25">
+      <autoRebuild>false</autoRebuild>
+      <rebuildDisabled>false</rebuildDisabled>
+    </com.sonyericsson.rebuild.RebuildSettings>
+    <de.pellepelster.jenkins.walldisplay.WallDisplayJobProperty plugin="jenkinswalldisplay@0.6.30"/>
+  </properties>
+  <scm class="hudson.scm.NullSCM"/>
+  <canRoam>true</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers/>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>#curl -k https://am-vm-jenkins.intern.epages.de/job/create%20team%20orange%20vm/buildWithParameters?token=create_from_template \
+#-d &quot;template=$template&quot; \
+#-d &quot;vm_name=$vm_name&quot; \
+#-d &quot;delete_if_exists=$delete_if_exists&quot;</command>
+    </hudson.tasks.Shell>
+    <org.jenkinsci.plugins.ParameterizedRemoteTrigger.RemoteBuildConfiguration plugin="Parameterized-Remote-Trigger@2.2.2">
+      <token>create_from_template</token>
+      <remoteJenkinsName>AM Jenkins</remoteJenkinsName>
+      <job>create team orange vm</job>
+      <shouldNotFailBuild>false</shouldNotFailBuild>
+      <pollInterval>30</pollInterval>
+      <connectionRetryLimit>5</connectionRetryLimit>
+      <preventRemoteBuildQueue>false</preventRemoteBuildQueue>
+      <blockBuildUntilComplete>true</blockBuildUntilComplete>
+      <enhancedLogging>true</enhancedLogging>
+      <parameters>template=${template}
+vm_name=${vm_name}
+delete_if_exists=${delete_if_exists}</parameters>
+      <parameterList>
+        <string>template=${template}</string>
+        <string>vm_name=${vm_name}</string>
+        <string>delete_if_exists=${delete_if_exists}</string>
+      </parameterList>
+      <overrideAuth>false</overrideAuth>
+      <auth>
+        <org.jenkinsci.plugins.ParameterizedRemoteTrigger.Auth>
+          <NONE>none</NONE>
+          <API__TOKEN>apiToken</API__TOKEN>
+          <CREDENTIALS__PLUGIN>credentialsPlugin</CREDENTIALS__PLUGIN>
+        </org.jenkinsci.plugins.ParameterizedRemoteTrigger.Auth>
+      </auth>
+      <loadParamsFromFile>false</loadParamsFromFile>
+      <parameterFile></parameterFile>
+      <queryString></queryString>
+    </org.jenkinsci.plugins.ParameterizedRemoteTrigger.RemoteBuildConfiguration>
+  </builders>
+  <publishers/>
+  <buildWrappers/>
+</project>

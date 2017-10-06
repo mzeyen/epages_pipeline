@@ -1,0 +1,51 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<flow-definition plugin="workflow-job@2.5">
+  <actions/>
+  <description></description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <hudson.plugins.buildblocker.BuildBlockerProperty plugin="build-blocker-plugin@1.7.3">
+      <useBuildBlocker>false</useBuildBlocker>
+      <blockLevel>GLOBAL</blockLevel>
+      <scanQueueFor>DISABLED</scanQueueFor>
+      <blockingJobs></blockingJobs>
+    </hudson.plugins.buildblocker.BuildBlockerProperty>
+    <org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
+      <triggers/>
+    </org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
+    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.25">
+      <autoRebuild>false</autoRebuild>
+      <rebuildDisabled>false</rebuildDisabled>
+    </com.sonyericsson.rebuild.RebuildSettings>
+  </properties>
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@2.13">
+    <script>node(&apos;ci-vm-ui-test-002&apos;) {
+   
+    stage &apos;checkout&apos;
+    
+        sh &apos;sudo rm -rf *&apos;
+        git branch: &apos;pre-release-development&apos;, credentialsId: &apos;c24e751f-8d24-4c11-b02e-a6428c3f88b7&apos;, url: &apos;git@github.com:ePages-de/esf-epages-unity.git&apos;
+
+    stage &apos;build&apos;
+        
+        sh &apos;chmod +x gradlew; ./gradlew clean dist;&apos; +
+           &apos;ESF_ZIP_FILE=&quot;`find . -name &quot;UNITY_*.zip&quot; -type f | sort -r | head -n1`&quot;;&apos; +
+           &apos;ESF_STRING=&quot;`echo ${ESF_ZIP_FILE} | sed -e \&apos;s/.zip//\&apos; | cut -d \&apos;/\&apos; -f 4`&quot;;&apos; +
+           &apos;unzip -qq &quot;${ESF_ZIP_FILE}&quot;;&apos; +
+           &apos;PATH=$(pwd); echo ${PATH}/${ESF_STRING} &gt; esfFolder.txt;&apos; + 
+           &apos;cd &quot;${ESF_STRING}&quot; || exit 1;&apos;
+           
+           
+    stage &apos;tests&apos;
+    
+        sh &apos;export DISPLAY=&quot;:0&quot;;&apos; +
+           &apos;ESF_FOLDER=$(head esfFolder.txt); cd ${ESF_FOLDER} || exit1;&apos; +
+           &apos;bin/UNITY_ESF_tests -sub esf-epages-unity -groups UNITY&apos; +
+           &apos; -email p.domin@epages.com -shop esf-test&apos; +
+           &apos; -url http://ep6unity2.vm-intern.epages.com/epages&apos; +
+           &apos; -surl http://esf-test.ep6unity2.vm-intern.epages.com:7000 -ap 0 -sp&apos;
+}</script>
+    <sandbox>true</sandbox>
+  </definition>
+  <triggers/>
+</flow-definition>

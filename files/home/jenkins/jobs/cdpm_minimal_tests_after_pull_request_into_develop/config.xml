@@ -1,0 +1,298 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description>&lt;h1 style=&quot;color:red&quot;&gt;Disabled b/c of AD-4289&lt;/h1&gt;&#xd;
+&lt;br/&gt;&#xd;
+&lt;a href=&quot;https://epages.atlassian.net/browse/AD-4289&quot;&gt;https://epages.atlassian.net/browse/AD-4289&lt;/a&gt;</description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <hudson.plugins.buildblocker.BuildBlockerProperty plugin="build-blocker-plugin@1.7.3">
+      <useBuildBlocker>false</useBuildBlocker>
+      <blockLevel>UNDEFINED</blockLevel>
+      <scanQueueFor>DISABLED</scanQueueFor>
+      <blockingJobs></blockingJobs>
+    </hudson.plugins.buildblocker.BuildBlockerProperty>
+    <jenkins.model.BuildDiscarderProperty>
+      <strategy class="hudson.tasks.LogRotator">
+        <daysToKeep>60</daysToKeep>
+        <numToKeep>-1</numToKeep>
+        <artifactDaysToKeep>-1</artifactDaysToKeep>
+        <artifactNumToKeep>-1</artifactNumToKeep>
+      </strategy>
+    </jenkins.model.BuildDiscarderProperty>
+    <com.coravy.hudson.plugins.github.GithubProjectProperty plugin="github@1.18.2">
+      <projectUrl>https://github.com/ePages-de/Cartridges/</projectUrl>
+      <displayName></displayName>
+    </com.coravy.hudson.plugins.github.GithubProjectProperty>
+    <jenkins.advancedqueue.AdvancedQueueSorterJobProperty plugin="PrioritySorter@2.9">
+      <useJobPriority>false</useJobPriority>
+      <priority>3</priority>
+    </jenkins.advancedqueue.AdvancedQueueSorterJobProperty>
+    <com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty plugin="naginator@1.17">
+      <optOut>false</optOut>
+    </com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty>
+    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.25">
+      <autoRebuild>false</autoRebuild>
+      <rebuildDisabled>false</rebuildDisabled>
+    </com.sonyericsson.rebuild.RebuildSettings>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>sha1</name>
+          <description></description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+    <de.pellepelster.jenkins.walldisplay.WallDisplayJobProperty plugin="jenkinswalldisplay@0.6.30">
+      <wallDisplayName>Minimal tests for Pull request into develop</wallDisplayName>
+    </de.pellepelster.jenkins.walldisplay.WallDisplayJobProperty>
+  </properties>
+  <scm class="hudson.plugins.git.GitSCM" plugin="git@2.4.4">
+    <configVersion>2</configVersion>
+    <userRemoteConfigs>
+      <hudson.plugins.git.UserRemoteConfig>
+        <name>origin</name>
+        <refspec>+refs/pull/*:refs/remotes/origin/pr/*</refspec>
+        <url>git@github.com:ePages-de/Cartridges.git</url>
+        <credentialsId>994c355a-d182-46a1-a5cd-04d866cca70c</credentialsId>
+      </hudson.plugins.git.UserRemoteConfig>
+    </userRemoteConfigs>
+    <branches>
+      <hudson.plugins.git.BranchSpec>
+        <name>${sha1}</name>
+      </hudson.plugins.git.BranchSpec>
+    </branches>
+    <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+    <submoduleCfg class="list"/>
+    <extensions>
+      <hudson.plugins.git.extensions.impl.RelativeTargetDirectory>
+        <relativeTargetDir>Cartridges</relativeTargetDir>
+      </hudson.plugins.git.extensions.impl.RelativeTargetDirectory>
+      <hudson.plugins.git.extensions.impl.PreBuildMerge>
+        <options>
+          <mergeRemote>origin</mergeRemote>
+          <mergeTarget>stable</mergeTarget>
+          <mergeStrategy>default</mergeStrategy>
+          <fastForwardMode>FF</fastForwardMode>
+        </options>
+      </hudson.plugins.git.extensions.impl.PreBuildMerge>
+    </extensions>
+  </scm>
+  <quietPeriod>0</quietPeriod>
+  <assignedNode>cartridges_pull_requests</assignedNode>
+  <canRoam>false</canRoam>
+  <disabled>true</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers>
+    <org.jenkinsci.plugins.ghprb.GhprbTrigger plugin="ghprb@1.31.4">
+      <spec>* 6-23 * * *</spec>
+      <latestVersion>3</latestVersion>
+      <configVersion>3</configVersion>
+      <adminlist></adminlist>
+      <allowMembersOfWhitelistedOrgsAsAdmin>false</allowMembersOfWhitelistedOrgsAsAdmin>
+      <orgslist></orgslist>
+      <cron>* 6-23 * * *</cron>
+      <buildDescTemplate></buildDescTemplate>
+      <onlyTriggerPhrase>false</onlyTriggerPhrase>
+      <useGitHubHooks>false</useGitHubHooks>
+      <permitAll>true</permitAll>
+      <whitelist></whitelist>
+      <autoCloseFailedPullRequests>false</autoCloseFailedPullRequests>
+      <displayBuildErrorsOnDownstreamBuilds>false</displayBuildErrorsOnDownstreamBuilds>
+      <whiteListTargetBranches>
+        <org.jenkinsci.plugins.ghprb.GhprbBranch>
+          <branch></branch>
+        </org.jenkinsci.plugins.ghprb.GhprbBranch>
+      </whiteListTargetBranches>
+      <gitHubAuthId>07b6f4b6-06db-45b9-a194-081cf1336d4d</gitHubAuthId>
+      <triggerPhrase></triggerPhrase>
+      <extensions>
+        <org.jenkinsci.plugins.ghprb.extensions.status.GhprbSimpleStatus>
+          <commitStatusContext></commitStatusContext>
+          <triggeredStatus></triggeredStatus>
+          <startedStatus></startedStatus>
+          <statusUrl></statusUrl>
+          <addTestResults>false</addTestResults>
+        </org.jenkinsci.plugins.ghprb.extensions.status.GhprbSimpleStatus>
+      </extensions>
+    </org.jenkinsci.plugins.ghprb.GhprbTrigger>
+  </triggers>
+  <concurrentBuild>true</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+puppet agent --test
+if [[ $? -eq 0 || $? -eq 2 ]] ; then
+    exit 0
+else
+    exit 1
+fi</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command># Get cartridge and language changes
+export BUILD_ID=dontKillMe
+~/epages-infra/scripts/cvs-2-git/get_changed_cartridges.sh -d &quot;${WORKSPACE}/Cartridges&quot; -l &quot;/tmp/${JOB_NAME}.changed_cartridges.txt&quot;
+~/epages-infra/scripts/cvs-2-git/get_changed_languages.sh -d &quot;${WORKSPACE}/Cartridges&quot; -l &quot;/tmp/${JOB_NAME}.changed_languages.txt&quot;</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+export BUILD_ID=dontKillMe
+if [[ ! -d &apos;/srv/epages/eproot/Cartridges&apos; ]] ; then
+    /root/epages-infra/scripts/epages/install_epages.sh -r &apos;6.17.38/latest&apos; || exit 1
+else
+   cd &apos;/srv/epages/eproot/Cartridges/DE_EPAGES&apos; || exit 1
+   . /etc/default/epages6
+   $PERL Makefile.PL &amp;&amp; make uninstall_multistore
+fi</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+export BUILD_ID=dontKillMe
+# Check if a multistore cartridge is affected
+grep -q -E &apos;^(MultiStore|MultiStoreMaster|MultiStoreCommon|MultiStoreProvider|MultiStoreShipping)$&apos; &quot;/tmp/${JOB_NAME}.changed_cartridges.txt&quot;
+if [[ &quot;$?&quot; -eq 0 ]] ; then
+    ~/epages-infra/scripts/epages/reinstall_from_source.sh -s &quot;${WORKSPACE}/Cartridges&quot; -m || exit 1
+else 
+    ~/epages-infra/scripts/epages/reinstall_from_source.sh -s &quot;${WORKSPACE}/Cartridges&quot; || exit 1
+fi
+
+# Do we have exclusive Cartridges in the PR changeset?
+grep -q -E &apos;(ELogistics|Envialia|MultiStoreConnector|TagCommander)&apos; &quot;/tmp/${JOB_NAME}.changed_cartridges.txt&quot;
+if [[ &quot;$?&quot; -eq 0 ]] ; then
+    ~/epages-infra/scripts/epages/install_all_additional_cartridges.sh || exit 1
+fi</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>export BUILD_ID=dontKillMe
+~/epages-infra/scripts/epages/configure_app_servers.sh -m 300 -n 2 -r
+/etc/init.d/epages6 stop_cron</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+export BUILD_ID=dontKillMe
+ERRORS_OCCURED=&apos;false&apos;
+~/epages-infra/scripts/epages/test/run_perl_critic_test.sh -c &quot;/tmp/${JOB_NAME}.changed_cartridges.txt&quot;
+if [[ &quot;$?&quot; -ne 0 ]] ; then ERRORS=&apos;true&apos; ; fi
+~/epages-infra/scripts/epages/test/run_regression_tests.sh
+if [[ &quot;$?&quot; -ne 0 ]] ; then ERRORS=&apos;true&apos; ; fi
+echo &apos;Ignoring Cartridges &quot;CodeGenerator|Flex|Test|ShopConfiguration|ShopTransferProvider&quot; when module testing Store Store...&apos;
+cat &quot;/tmp/${JOB_NAME}.changed_cartridges.txt&quot; | grep -v -E &apos;(CodeGenerator|Flex|Test|ShopConfiguration|ShopTransferProvider)&apos; &gt; &quot;/tmp/${JOB_NAME}.changed_cartridges_store.txt&quot;
+
+grep -q -E &apos;^(MultiStore|MultiStoreMaster|MultiStoreCommon|MultiStoreProvider|MultiStoreShipping)$&apos; &quot;/tmp/${JOB_NAME}.changed_cartridges_store.txt&quot;
+if [[ &quot;$?&quot; -eq 0 ]] ; then
+    ~/epages-infra/scripts/epages/test/run_perl_module_tests.sh Master &quot;/tmp/${JOB_NAME}.changed_cartridges_store.txt&quot;
+  	if [[ &quot;$?&quot; -ne 0 ]] ; then ERRORS=&apos;true&apos; ; fi
+    ~/epages-infra/scripts/epages/test/run_perl_module_tests.sh MultiStore &quot;/tmp/${JOB_NAME}.changed_cartridges_store.txt&quot;
+  	if [[ &quot;$?&quot; -ne 0 ]] ; then ERRORS=&apos;true&apos; ; fi
+    ~/epages-infra/scripts/epages/test/run_check_language_tags.sh -s &quot;Master&quot; -f &quot;/tmp/${JOB_NAME}.changed_languages.txt&quot;
+    if [[ &quot;$?&quot; -ne 0 ]] ; then ERRORS=&apos;true&apos; ; fi
+    ~/epages-infra/scripts/epages/test/run_check_language_tags.sh -s &quot;MultiStore&quot; -f &quot;/tmp/${JOB_NAME}.changed_languages.txt&quot;
+    if [[ &quot;$?&quot; -ne 0 ]] ; then ERRORS=&apos;true&apos; ; fi
+else
+    ~/epages-infra/scripts/epages/test/run_perl_module_tests.sh Store &quot;/tmp/${JOB_NAME}.changed_cartridges_store.txt&quot;
+  	if [[ &quot;$?&quot; -ne 0 ]] ; then ERRORS=&apos;true&apos; ; fi
+    ~/epages-infra/scripts/epages/test/run_check_language_tags.sh -s &quot;Store&quot; -f &quot;/tmp/${JOB_NAME}.changed_languages.txt&quot;
+    if [[ &quot;$?&quot; -ne 0 ]] ; then ERRORS=&apos;true&apos; ; fi
+fi
+~/epages-infra/scripts/epages/test/run-template-tle-test.sh
+if [[ &quot;$?&quot; -ne 0 ]] ; then ERRORS=&apos;true&apos; ; fi
+~/epages-infra/scripts/epages/test/run_check_for_unused_files.sh
+if [[ &quot;$?&quot; -ne 0 ]] ; then ERRORS=&apos;true&apos; ; fi
+~/epages-infra/scripts/epages/test/check_git_commits.sh -d &quot;${WORKSPACE}/Cartridges&quot;
+if [[ &quot;$?&quot; -ne 0 ]] ; then ERRORS=&apos;true&apos; ; fi
+
+# Our exit strategy.
+if [[ &quot;${ERRORS}&quot; = &apos;true&apos; ]] ; then exit 1 ; fi</command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers>
+    <hudson.plugins.emailext.ExtendedEmailPublisher plugin="email-ext@2.41.3">
+      <recipientList>a.urban@epages.com</recipientList>
+      <configuredTriggers>
+        <hudson.plugins.emailext.plugins.trigger.FailureTrigger>
+          <email>
+            <recipientList></recipientList>
+            <subject>$PROJECT_DEFAULT_SUBJECT</subject>
+            <body>$PROJECT_DEFAULT_CONTENT</body>
+            <recipientProviders>
+              <hudson.plugins.emailext.plugins.recipients.DevelopersRecipientProvider/>
+            </recipientProviders>
+            <attachmentsPattern></attachmentsPattern>
+            <attachBuildLog>false</attachBuildLog>
+            <compressBuildLog>false</compressBuildLog>
+            <replyTo>$PROJECT_DEFAULT_REPLYTO</replyTo>
+            <contentType>project</contentType>
+          </email>
+        </hudson.plugins.emailext.plugins.trigger.FailureTrigger>
+        <hudson.plugins.emailext.plugins.trigger.StillFailingTrigger>
+          <email>
+            <recipientList></recipientList>
+            <subject>$PROJECT_DEFAULT_SUBJECT</subject>
+            <body>$PROJECT_DEFAULT_CONTENT</body>
+            <recipientProviders>
+              <hudson.plugins.emailext.plugins.recipients.DevelopersRecipientProvider/>
+            </recipientProviders>
+            <attachmentsPattern></attachmentsPattern>
+            <attachBuildLog>false</attachBuildLog>
+            <compressBuildLog>false</compressBuildLog>
+            <replyTo>$PROJECT_DEFAULT_REPLYTO</replyTo>
+            <contentType>project</contentType>
+          </email>
+        </hudson.plugins.emailext.plugins.trigger.StillFailingTrigger>
+        <hudson.plugins.emailext.plugins.trigger.FixedTrigger>
+          <email>
+            <recipientList></recipientList>
+            <subject>$PROJECT_DEFAULT_SUBJECT</subject>
+            <body>$PROJECT_DEFAULT_CONTENT</body>
+            <recipientProviders>
+              <hudson.plugins.emailext.plugins.recipients.DevelopersRecipientProvider/>
+            </recipientProviders>
+            <attachmentsPattern></attachmentsPattern>
+            <attachBuildLog>false</attachBuildLog>
+            <compressBuildLog>false</compressBuildLog>
+            <replyTo>$PROJECT_DEFAULT_REPLYTO</replyTo>
+            <contentType>project</contentType>
+          </email>
+        </hudson.plugins.emailext.plugins.trigger.FixedTrigger>
+      </configuredTriggers>
+      <contentType>default</contentType>
+      <defaultSubject>[Cartridges][PR test] #$ghprbPullId $ghprbPullTitle - Build ${BUILD_NUMBER} - $BUILD_STATUS!</defaultSubject>
+      <defaultContent>Node: ${ENV, var=&quot;NODE_NAME&quot;}
+Build: ${BUILD_NUMBER} - ${BUILD_URL}
+
+Build log:
+${BUILD_LOG, maxLines=150, escapeHtml=0}</defaultContent>
+      <attachmentsPattern></attachmentsPattern>
+      <presendScript></presendScript>
+      <attachBuildLog>false</attachBuildLog>
+      <compressBuildLog>false</compressBuildLog>
+      <replyTo>$DEFAULT_REPLYTO</replyTo>
+      <saveOutput>false</saveOutput>
+      <disabled>false</disabled>
+    </hudson.plugins.emailext.ExtendedEmailPublisher>
+  </publishers>
+  <buildWrappers>
+    <hudson.plugins.build__timeout.BuildTimeoutWrapper plugin="build-timeout@1.16">
+      <strategy class="hudson.plugins.build_timeout.impl.AbsoluteTimeOutStrategy">
+        <timeoutMinutes>480</timeoutMinutes>
+      </strategy>
+      <operationList>
+        <hudson.plugins.build__timeout.operations.FailOperation/>
+      </operationList>
+    </hudson.plugins.build__timeout.BuildTimeoutWrapper>
+    <hudson.plugins.ansicolor.AnsiColorBuildWrapper plugin="ansicolor@0.4.2">
+      <colorMapName>xterm</colorMapName>
+    </hudson.plugins.ansicolor.AnsiColorBuildWrapper>
+    <EnvInjectBuildWrapper plugin="envinject@1.92.1">
+      <info>
+        <propertiesContent>CVSROOT=:pserver:ttester:ePages01@ep-cvs.intern.epages.de:/CVS
+SKIP_EXTERNAL_TESTS=yes
+SKIP_TIMING=yes</propertiesContent>
+        <loadFilesFromMaster>false</loadFilesFromMaster>
+      </info>
+    </EnvInjectBuildWrapper>
+    <hudson.plugins.timestamper.TimestamperBuildWrapper plugin="timestamper@1.8.2"/>
+  </buildWrappers>
+</project>

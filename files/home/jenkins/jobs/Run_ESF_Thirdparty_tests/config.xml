@@ -1,0 +1,347 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description>&lt;img src=&quot;http://glossi-media-us-west.s3-us-west-1.amazonaws.com/media/ff43d04e80c048958629e9fbe2c80f57hpINWL.gif&quot;/&gt;</description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <jenkins.model.BuildDiscarderProperty>
+      <strategy class="hudson.tasks.LogRotator">
+        <daysToKeep>60</daysToKeep>
+        <numToKeep>-1</numToKeep>
+        <artifactDaysToKeep>-1</artifactDaysToKeep>
+        <artifactNumToKeep>-1</artifactNumToKeep>
+      </strategy>
+    </jenkins.model.BuildDiscarderProperty>
+    <hudson.plugins.buildblocker.BuildBlockerProperty plugin="build-blocker-plugin@1.7.3">
+      <useBuildBlocker>false</useBuildBlocker>
+      <blockLevel>UNDEFINED</blockLevel>
+      <scanQueueFor>DISABLED</scanQueueFor>
+      <blockingJobs></blockingJobs>
+    </hudson.plugins.buildblocker.BuildBlockerProperty>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>TARGET_DOMAIN</name>
+          <description>The &lt;b&gt;domain&lt;/b&gt; of the ePages installation you want to test, e.g. plus-one-nightly.epages.com.</description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>SHOP</name>
+          <description>The &lt;b&gt;alias&lt;/b&gt; of the ePages shop you want to test, e.g. DemoShop.</description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>SHOP_DOMAIN</name>
+          <description></description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>TESTGROUPS</name>
+          <description>&lt;b&gt;One or more testgroups&lt;/b&gt; to run, e.g. SEARCH or CORE,SEARCH.</description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>SITE_URL</name>
+          <description>Required only, &lt;b&gt;if your Site is running on a different host&lt;/b&gt; than the Store you want to test.</description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>STORE</name>
+          <description>Required only, &lt;b&gt;if your Store is not called &quot;Store&quot;&lt;/b&gt;.</description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.TextParameterDefinition>
+          <name>SSL_PROXY</name>
+          <description>The &lt;b&gt;SSL proxy URL&lt;/b&gt; of the target system, e.g. https://estore-sslserver.eu.</description>
+          <defaultValue></defaultValue>
+        </hudson.model.TextParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>WSADMIN_PASSWORD</name>
+          <description></description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.BooleanParameterDefinition>
+          <name>RETRY_TESTS</name>
+          <description>Flag whether the retry option for the ESF tests shall be enabled.</description>
+          <defaultValue>true</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+        <hudson.model.BooleanParameterDefinition>
+          <name>RESTART_BROWSER</name>
+          <description>Flag whether the restart browser option for the ESF tests shall be enabled.</description>
+          <defaultValue>true</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+        <hudson.model.BooleanParameterDefinition>
+          <name>SKIP_PERFORMANCE</name>
+          <description>Flag whether the skip performance test option for the ESF tests shall be enabled.</description>
+          <defaultValue>false</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+        <hudson.model.BooleanParameterDefinition>
+          <name>SKIPPRECONDITIONS</name>
+          <description>Flag whether the pre conditions option (pre conditions and performance test) for the ESF tests shall be enabled.</description>
+          <defaultValue>false</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+        <hudson.model.BooleanParameterDefinition>
+          <name>RUN_QUARANTINE_TESTS</name>
+          <description>Flag wheter the run is for quarantine or not.</description>
+          <defaultValue>false</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>VERSION</name>
+          <description>ePages Version</description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>REPO</name>
+          <description></description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>ENV_TYPE</name>
+          <description></description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>ENV_IDENTIFIER</name>
+          <description></description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>ENV_OS</name>
+          <description></description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.BooleanParameterDefinition>
+          <name>HAS_DOMAIN</name>
+          <description>default value is false. Tells that the dynamic created shop should also has a domain name.
+Domain name created automatically according to schema: [shop-name].[host-name]</description>
+          <defaultValue>false</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+        <hudson.model.BooleanParameterDefinition>
+          <name></name>
+          <description></description>
+          <defaultValue>false</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+    <com.dabsquared.gitlabjenkins.connection.GitLabConnectionProperty plugin="gitlab-plugin@1.4.3">
+      <gitLabConnection>https://am-git.intern.epages.de/</gitLabConnection>
+    </com.dabsquared.gitlabjenkins.connection.GitLabConnectionProperty>
+    <com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty plugin="naginator@1.17.2">
+      <optOut>false</optOut>
+    </com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty>
+    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.25">
+      <autoRebuild>false</autoRebuild>
+      <rebuildDisabled>false</rebuildDisabled>
+    </com.sonyericsson.rebuild.RebuildSettings>
+    <de.pellepelster.jenkins.walldisplay.WallDisplayJobProperty plugin="jenkinswalldisplay@0.6.30"/>
+    <EnvInjectJobProperty plugin="envinject@2.0">
+      <info>
+        <propertiesContent>TO_LOGSTASH_IMAGE_NAME=epages/to-logstash
+TO_LOGSTASH_IMAGE_TAG=latest</propertiesContent>
+        <secureGroovyScript plugin="script-security@1.27">
+          <script></script>
+          <sandbox>false</sandbox>
+        </secureGroovyScript>
+        <loadFilesFromMaster>false</loadFilesFromMaster>
+      </info>
+      <on>true</on>
+      <keepJenkinsSystemVariables>true</keepJenkinsSystemVariables>
+      <keepBuildVariables>true</keepBuildVariables>
+      <overrideBuildParameters>false</overrideBuildParameters>
+    </EnvInjectJobProperty>
+  </properties>
+  <scm class="hudson.plugins.git.GitSCM" plugin="git@2.5.3">
+    <configVersion>2</configVersion>
+    <userRemoteConfigs>
+      <hudson.plugins.git.UserRemoteConfig>
+        <name>upstream</name>
+        <url>git@github.com:ePages-de/to-logstash.git</url>
+        <credentialsId>c24e751f-8d24-4c11-b02e-a6428c3f88b7</credentialsId>
+      </hudson.plugins.git.UserRemoteConfig>
+    </userRemoteConfigs>
+    <branches>
+      <hudson.plugins.git.BranchSpec>
+        <name>upstream/master</name>
+      </hudson.plugins.git.BranchSpec>
+    </branches>
+    <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+    <submoduleCfg class="list"/>
+    <extensions>
+      <hudson.plugins.git.extensions.impl.RelativeTargetDirectory>
+        <relativeTargetDir>to-logstash</relativeTargetDir>
+      </hudson.plugins.git.extensions.impl.RelativeTargetDirectory>
+      <hudson.plugins.git.extensions.impl.CloneOption>
+        <shallow>true</shallow>
+        <noTags>false</noTags>
+        <reference></reference>
+        <depth>0</depth>
+        <honorRefspec>false</honorRefspec>
+      </hudson.plugins.git.extensions.impl.CloneOption>
+    </extensions>
+  </scm>
+  <quietPeriod>0</quietPeriod>
+  <assignedNode>esf_docker</assignedNode>
+  <canRoam>false</canRoam>
+  <disabled>true</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers/>
+  <concurrentBuild>true</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+
+# Validate mandatory parameters
+if [[ -z $TARGET_DOMAIN ]]; then
+    echo -e &quot;\nError: Missing parameter for argument &apos;TARGET_DOMAIN&apos;.\n&quot;
+    exit 1
+fi
+
+# clean up workspace
+if [[ -d esf ]] ; then rm -Rf esf ; fi
+
+mkdir esf
+mkdir esf/log
+
+# pull latest esf image
+set +x; docker login -u ${DOCKER_USERNAME} -p &quot;${DOCKER_PASSWORD}&quot; -e teamorange@epages.com; set -x
+docker pull epages/esf:latest-thirdparty
+
+# prepare and run esf
+SSHOP=
+if [[ &quot;${SHOP}&quot; ]] ; then SSHOP=&quot;-shop ${SHOP}&quot; ; fi
+SHAS_SSL_CERT=
+if [[ &quot;${HAS_SSL_CERT}&quot; == &apos;true&apos; ]] ; then SHAS_SSL_CERT=&quot;--ssl-certificate&quot; ; fi
+SHAS_DOMAIN=
+if [[ &quot;${HAS_DOMAIN}&quot; == &apos;true&apos; ]] ; then SHAS_DOMAIN=&quot;--has-domain&quot; ; fi
+SARGUMENT=
+if [[ &quot;${STORE}&quot; ]] ; then SARGUMENT=&quot;--store-name ${STORE}&quot; ; fi
+SDARGUMENT=
+if [[ &quot;${SHOP_DOMAIN}&quot; ]] ; then SDARGUMENT=&quot;--shop-domain ${SHOP_DOMAIN}&quot; ; fi
+SUARGUMENT=
+if [[ &quot;${SITE_URL}&quot; ]] ; then SUARGUMENT=&quot;--site-url http://${SITE_URL}/epages&quot; ; fi
+SSLPARGUMENT=
+if [[ &quot;${SSL_PROXY}&quot; ]] ; then SSLPARGUMENT=&quot;--ssl-proxy ${SSL_PROXY}&quot; ; fi
+WSARGUMENT=
+if [[ &quot;${WSADMIN_PASSWORD}&quot; ]] ; then WSARGUMENT=&quot;--soap-system-password ${WSADMIN_PASSWORD}&quot; ; fi
+RARGUMENT=
+if [[ ${RETRY_TESTS} == &apos;true&apos; ]]; then RARGUMENT=&apos;--retry &apos; ; fi
+QARGUMENT=
+if [[ &quot;${RUN_QUARANTINE_TESTS}&quot; == &apos;true&apos; ]] ; then QARGUMENT=&quot;--quarantine&quot; ; fi
+SKIPARGUMENT=
+if [[ &quot;${SKIPPRECONDITIONS}&quot; == &apos;true&apos; ]] ; then SKIPARGUMENT=&quot;-ap 0 -sp&quot; ; fi
+SKIPPERFORMANCE=
+if [[ &quot;${SKIP_PERFORMANCE}&quot; == &apos;true&apos; ]] ; then SKIPPERFORMANCE=&quot;-sp&quot; ; fi
+RESTARTARGUMENT=
+if [[ &quot;${RESTART_BROWSER}&quot; == &apos;true&apos; ]] ; then RESTARTARGUMENT=&quot;--restart-browser&quot; ; fi
+
+ESF_PARAMETERS=&quot;-browser chrome -groups ${TESTGROUPS} ${SSHOP} -url http://${TARGET_DOMAIN}/epages -email max.mustermann@epages.com ${SHAS_SSL_CERT} ${SHAS_DOMAIN}&quot;
+ESF_PARAMETERS=&quot;${ESF_PARAMETERS} --csv-report log/esf-report.csv ${RARGUMENT} ${SARGUMENT} ${SDARGUMENT} ${SUARGUMENT} ${SSLPARGUMENT} ${WSARGUMENT} ${QARGUMENT} ${SKIPARGUMENT} ${SKIPPERFORMANCE} ${RESTARTARGUMENT}&quot;
+
+docker run --rm --user=root -v ${WORKSPACE}/esf/log:/home/esf/esf/log -t epages/esf:latest-thirdparty ${ESF_PARAMETERS}
+EXIT_CODE_ESF=&quot;$?&quot;
+
+for RESULT_FILE in `find &quot;./esf/log/&quot; -name &quot;emailable-report.html&quot; -type f | sort | tail -n1` ; do cp -vf &quot;$RESULT_FILE&quot; /tmp/. ; done
+EXIT_CODE_LOGSTASH=0
+
+if [[ -z $VERSION ]] ; then echo &apos;$VERSION is empty.&apos; ; fi
+if [[ -z $REPO ]] ; then echo &apos;$REPO is empty.&apos; ; fi
+if [[ -z $ENV_TYPE ]] ; then echo &apos;$ENV_TYPE is empty.&apos; ; fi
+if [[ -z $ENV_IDENTIFIER ]] ; then echo &apos;$ENV_IDENTIFIER is empty.&apos; ; fi
+if [[ -z $ENV_OS ]] ; then echo &apos;$ENV_OS is empty.&apos; ; fi
+
+if [[ $VERSION &amp;&amp; $REPO &amp;&amp; $ENV_TYPE &amp;&amp; $ENV_IDENTIFIER &amp;&amp; $ENV_OS ]] ; then
+    # push the esf-test-results.json to our elasticsearch server via logstash docker container
+    
+    ############
+    # logstash #
+    ############
+    
+    # mount dirs.
+    export LS_LOG=&quot;$(find ${WORKSPACE} -maxdepth 3 -name &quot;log&quot; -type d)&quot;
+    export LS_CONFIG=&quot;${WORKSPACE}/to-logstash/config&quot;
+    
+    # logstash.conf.
+    export LS_INPUT=&quot;log,esf&quot;
+    export LS_OUTPUT=&quot;log,elasticsearch&quot;
+    
+    ###########
+    # esf env #
+    ###########
+    
+    # epages6.
+    export EPAGES_VERSION=${VERSION}
+    export EPAGES_REPO_ID=${REPO}
+    
+    # env url to dir &quot;.../esf/.../log&quot;.
+    export ENV_URL=&quot;${BUILD_URL}artifact/esf/${LS_LOG#*/esf/}&quot;
+   
+    
+    #################
+    # elasticsearch #
+    #################
+    
+    # elasticsearch connection details.
+    export ES_HOSTS=&quot;[ &apos;cd-vm-docker-host-001.intern.epages.de:9200&apos; ]&quot;
+    export ES_USER=&quot;admin&quot;
+    export ES_PASSWORD=&quot;qwert6&quot;
+    
+    # elasticsearch document path.
+    export ES_INDEX=&quot;esf-cdp-ui-tests&quot;
+    
+    ##########
+    # docker #
+    ##########
+    
+    # docker container settings.
+    export LS_DOCKER_CONTAINER=&quot;to-logstash-run-esf-tests-${BUILD_NUMBER}&quot;
+    
+    # pull latest logstash image.   
+    docker pull ${TO_LOGSTASH_IMAGE_NAME}:${TO_LOGSTASH_IMAGE_TAG}
+    
+    # run logstash docker container
+    ${WORKSPACE}/to-logstash/deploy.sh || EXIT_CODE_LOGSTASH=1
+
+    # chown our workspace.
+    sudo chown -R jenkins:jenkins &quot;${WORKSPACE}&quot; || EXIT_CODE_LOGSTASH=1
+fi
+
+if [[ ${EXIT_CODE_ESF} -ne 0 || ${EXIT_CODE_LOGSTASH} -ne 0 ]] ; then exit 1 ; fi</command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers>
+    <hudson.tasks.ArtifactArchiver>
+      <artifacts>esf/log/**</artifacts>
+      <allowEmptyArchive>false</allowEmptyArchive>
+      <onlyIfSuccessful>false</onlyIfSuccessful>
+      <fingerprint>false</fingerprint>
+      <defaultExcludes>true</defaultExcludes>
+      <caseSensitive>true</caseSensitive>
+    </hudson.tasks.ArtifactArchiver>
+    <org.jenkinsci.plugins.postbuildscript.PostBuildScript plugin="postbuildscript@0.17">
+      <buildSteps>
+        <hudson.tasks.Shell>
+          <command>sudo chown -R jenkins:jenkins &quot;${WORKSPACE}&quot;</command>
+        </hudson.tasks.Shell>
+      </buildSteps>
+      <scriptOnlyIfSuccess>false</scriptOnlyIfSuccess>
+      <scriptOnlyIfFailure>false</scriptOnlyIfFailure>
+      <markBuildUnstable>false</markBuildUnstable>
+    </org.jenkinsci.plugins.postbuildscript.PostBuildScript>
+  </publishers>
+  <buildWrappers>
+    <hudson.plugins.ansicolor.AnsiColorBuildWrapper plugin="ansicolor@0.4.2">
+      <colorMapName>xterm</colorMapName>
+    </hudson.plugins.ansicolor.AnsiColorBuildWrapper>
+    <org.jenkinsci.plugins.credentialsbinding.impl.SecretBuildWrapper plugin="credentials-binding@1.11">
+      <bindings>
+        <org.jenkinsci.plugins.credentialsbinding.impl.UsernamePasswordMultiBinding>
+          <credentialsId>5d80ffaa-b0af-4369-9b79-1b35557587d1</credentialsId>
+          <usernameVariable>DOCKER_USERNAME</usernameVariable>
+          <passwordVariable>DOCKER_PASSWORD</passwordVariable>
+        </org.jenkinsci.plugins.credentialsbinding.impl.UsernamePasswordMultiBinding>
+      </bindings>
+    </org.jenkinsci.plugins.credentialsbinding.impl.SecretBuildWrapper>
+    <hudson.plugins.timestamper.TimestamperBuildWrapper plugin="timestamper@1.8.4"/>
+  </buildWrappers>
+</project>

@@ -1,0 +1,71 @@
+machine:
+  services:
+    - docker
+  environment:
+    MERGE_SCRIPT_URL_PREFIX: https://raw.githubusercontent.com/kayabendroth/cd-utils/dev/scripts/git
+    MERGE_SCRIPT: merge-to.sh
+    GIT_UPSTREAM_URL: git@github.com:ePages-de/jenkins-rnd-pipeline.git
+    GIT_UPSTREAM_BRANCH_MASTER: master
+    GIT_UPSTREAM_BRANCH_STABLE: stable
+    # The Docker image.
+    JRP_IMAGE_NAME: "epages/jenkins-rnd-pipeline"
+    JRP_IMAGE_TAG: ${CIRCLE_BRANCH//\//-}
+    # Test data.
+    TEST_CONTAINER_NAME: jrp-local-test
+    TEST_CONTAINER_JPORT: 8080
+    TEST_DATA_DIR: "/tmp/jenkins-container-data-dir"
+
+
+dependencies:
+  cache_directories:
+    - "~/docker"
+  override:
+    # Docker environment used.
+    - docker info
+    # Load cached images, if available.
+    - if [[ -e ~/docker/image.tar ]]; then docker load --input ~/docker/image.tar; fi
+    # Build our image.
+    - docker build -t ${JRP_IMAGE_NAME}:${JRP_IMAGE_TAG} .
+    # Save built image into cache.
+    - mkdir -p ~/docker; docker save ${JRP_IMAGE_NAME}:${JRP_IMAGE_TAG} > ~/docker/image.tar
+
+test:
+  override:
+    # Starting container with mounted volume.
+    - mkdir -p "${TEST_DATA_DIR}"
+    - docker run -d -p ${TEST_CONTAINER_JPORT}:8080 -p 50000:50000 -v "${TEST_DATA_DIR}:/var/jenkins_home" --name=${TEST_CONTAINER_NAME} ${JRP_IMAGE_NAME}:${JRP_IMAGE_TAG}
+    - sleep 5
+    # Check, if one of the Jenkins jar files has been written to our local data dir.
+    - test -f "${TEST_DATA_DIR}/war/WEB-INF/jenkins-cli.jar"
+    # Check, if Jenkins landing page is available.
+    - curl -v "localhost:${TEST_CONTAINER_JPORT}" > /dev/null
+    - docker stop "${TEST_CONTAINER_NAME}"
+
+deployment:
+  dev-actions:
+    branch: dev
+    commands:
+      # Push image to Docker Hub.
+      - docker login -u "${DOCKER_LOGIN_USERNAME}" -p "${DOCKER_LOGIN_PASSWORD}" -e "${DOCKER_LOGIN_EMAIL}"
+      - docker push "${JRP_IMAGE_NAME}:${JRP_IMAGE_TAG}"
+      # Merge tested commit into master.
+      - wget -O "/tmp/${MERGE_SCRIPT}" "${MERGE_SCRIPT_URL_PREFIX}/${MERGE_SCRIPT}" && chmod 750 "/tmp/${MERGE_SCRIPT}"
+      - /tmp/${MERGE_SCRIPT} -c "${CIRCLE_SHA1}" -e "${CIRCLE_BRANCH}" -t "${GIT_UPSTREAM_BRANCH_MASTER}" -r "${GIT_UPSTREAM_URL}"
+  master-actions:
+    branch: master
+    commands:
+      # Push image to Docker Hub.
+      - docker login -u "${DOCKER_LOGIN_USERNAME}" -p "${DOCKER_LOGIN_PASSWORD}" -e "${DOCKER_LOGIN_EMAIL}"
+      - docker push "${JRP_IMAGE_NAME}:${JRP_IMAGE_TAG}"
+      # Merge tested commit into stable.
+      - wget -O "/tmp/${MERGE_SCRIPT}" "${MERGE_SCRIPT_URL_PREFIX}/${MERGE_SCRIPT}" && chmod 750 "/tmp/${MERGE_SCRIPT}"
+      - /tmp/${MERGE_SCRIPT} -c "${CIRCLE_SHA1}" -e "${CIRCLE_BRANCH}" -t "${GIT_UPSTREAM_BRANCH_STABLE}" -r "${GIT_UPSTREAM_URL}"
+  stable-actions:
+    branch: stable
+    commands:
+      # Push image to Docker Hub.
+      - docker login -u "${DOCKER_LOGIN_USERNAME}" -p "${DOCKER_LOGIN_PASSWORD}" -e "${DOCKER_LOGIN_EMAIL}"
+      - docker push "${JRP_IMAGE_NAME}:${JRP_IMAGE_TAG}"
+      # Tag with 'latest' and push image to Docker Hub.
+      - docker tag "${JRP_IMAGE_NAME}:${JRP_IMAGE_TAG}" "${JRP_IMAGE_NAME}:latest"
+      - docker push "${JRP_IMAGE_NAME}:latest"

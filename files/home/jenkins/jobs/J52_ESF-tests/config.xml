@@ -1,0 +1,271 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description>esf tests  on ep6dev (vm: esf-test-1)&#xd;
+</description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <jenkins.model.BuildDiscarderProperty>
+      <strategy class="hudson.tasks.LogRotator">
+        <daysToKeep>-1</daysToKeep>
+        <numToKeep>10</numToKeep>
+        <artifactDaysToKeep>-1</artifactDaysToKeep>
+        <artifactNumToKeep>-1</artifactNumToKeep>
+      </strategy>
+    </jenkins.model.BuildDiscarderProperty>
+    <hudson.plugins.buildblocker.BuildBlockerProperty plugin="build-blocker-plugin@1.7.3">
+      <useBuildBlocker>false</useBuildBlocker>
+      <blockLevel>UNDEFINED</blockLevel>
+      <scanQueueFor>DISABLED</scanQueueFor>
+      <blockingJobs></blockingJobs>
+    </hudson.plugins.buildblocker.BuildBlockerProperty>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>TESTSHOP</name>
+          <description>Shop to be tested</description>
+          <defaultValue>esf-test</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>HOST</name>
+          <description>Host on which the shop is running.</description>
+          <defaultValue>ep6unity2.vm-intern.epages.com</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>UNITYHOST</name>
+          <description>Unity server</description>
+          <defaultValue>ep6unity2.vm-intern.epages.com</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>TESTGROUP</name>
+          <description>Test group for which the tests are performed.</description>
+          <defaultValue>UNITY</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.ChoiceParameterDefinition>
+          <name>UNSTABLE</name>
+          <description>Executes the group &quot;UNSTABLE&quot;</description>
+          <choices class="java.util.Arrays$ArrayList">
+            <a class="string-array">
+              <string>YES</string>
+              <string>NO</string>
+            </a>
+          </choices>
+        </hudson.model.ChoiceParameterDefinition>
+        <hudson.model.ChoiceParameterDefinition>
+          <name>SDR</name>
+          <description>Sub domain routing</description>
+          <choices class="java.util.Arrays$ArrayList">
+            <a class="string-array">
+              <string>Yes</string>
+              <string>No</string>
+            </a>
+          </choices>
+        </hudson.model.ChoiceParameterDefinition>
+        <hudson.model.ChoiceParameterDefinition>
+          <name>PROTOCOL</name>
+          <description>SSL connection</description>
+          <choices class="java.util.Arrays$ArrayList">
+            <a class="string-array">
+              <string>https</string>
+              <string>http</string>
+            </a>
+          </choices>
+        </hudson.model.ChoiceParameterDefinition>
+        <hudson.model.ChoiceParameterDefinition>
+          <name>EBAYTEST</name>
+          <description>Should eBay test be perfomed?</description>
+          <choices class="java.util.Arrays$ArrayList">
+            <a class="string-array">
+              <string>Yes</string>
+              <string>No</string>
+            </a>
+          </choices>
+        </hudson.model.ChoiceParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+    <com.dabsquared.gitlabjenkins.connection.GitLabConnectionProperty plugin="gitlab-plugin@1.4.3">
+      <gitLabConnection>https://am-git.intern.epages.de/</gitLabConnection>
+    </com.dabsquared.gitlabjenkins.connection.GitLabConnectionProperty>
+    <com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty plugin="naginator@1.17.2">
+      <optOut>false</optOut>
+    </com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty>
+    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.25">
+      <autoRebuild>false</autoRebuild>
+      <rebuildDisabled>false</rebuildDisabled>
+    </com.sonyericsson.rebuild.RebuildSettings>
+    <de.pellepelster.jenkins.walldisplay.WallDisplayJobProperty plugin="jenkinswalldisplay@0.6.30"/>
+  </properties>
+  <scm class="hudson.scm.NullSCM"/>
+  <quietPeriod>0</quietPeriod>
+  <assignedNode>esf-test-1</assignedNode>
+  <canRoam>false</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers/>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash 
+
+export BUILD_ID=dontKillMe
+#export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.91-1.b14.el6.x86_64
+Xvfb :99 -ac -screen 0 1920x1080x24 &amp;
+#Xvfb :99 -ac -screen 0 1730x1600x24 &amp;
+export DISPLAY=:99
+
+
+Xvfb :98 -ac -screen 0 3840x1080x24 &amp;
+#Xvfb :98 -ac -screen 0 7680x1080x24 &amp;
+export DISPLAY=:98
+
+echo &apos;127.0.0.1   mail&apos; &gt;&gt; /etc/hosts
+
+cd ~
+
+mount ep6unity1.vm-intern.epages.com:/root/esf-packages /root/jenkins/workspace/J52_ESF-tests
+
+cd /root/jenkins/workspace/J52_ESF-tests
+rm -rf esf
+tar xvf esf-epages-unity-1.15.0.tar
+#mv esf-epages-unity-1.15.0 esf
+mv esf-epages-unity-1.15.0 ${WORKSPACE}/esf
+cd esf
+
+echo &quot;Start ESF tests group &quot; $TESTGROUP &quot; in shop &quot; $TESTSHOP &quot; on &quot; $HOST 
+
+echo &quot;SDR = &quot; $SDR
+export DEFAULT=Yes
+export EBAYTESTDEFAULT=Yes
+export _PROTOCOL=$PROTOCOL
+
+echo &quot;Protocol: &quot;${_PROTOCOL}
+if [ &quot;$SDR&quot; = &quot;$DEFAULT&quot; ];
+	then
+		echo &quot;Sub domain routing&quot;
+        if [ &quot;$EBAYTEST&quot; = &quot;$EBAYTESTDEFAULT&quot; ];
+          then
+			echo &quot;Performing eBay test&quot;
+			bin/esf-epages-unity -sub esf-epages-unity -groups EBAY -email p.domin@epages.com -shop $TESTSHOP -url ${_PROTOCOL}://$TESTSHOP.$HOST/epages -surl ${_PROTOCOL}://$TESTSHOP.$UNITYHOST -ap 0 -sp -l de_DE -r -browser CHROME -wsak esf_soap_v1 -wsap ERf2XaUa3Gbd -rulive ePages_Software-EPAGESSOFTF277G-awvjirxju -rusandbox epages_Software-ePagiu320-mxpxtazjw
+        fi
+		bin/esf-epages-unity -sub esf-epages-unity -groups $TESTGROUP -email p.domin@epages.com -shop $TESTSHOP -url ${_PROTOCOL}://$TESTSHOP.$HOST/epages -surl ${_PROTOCOL}://$TESTSHOP.$UNITYHOST -ap 0 -sp -l de_DE -r -browser CHROME -wsak esf_soap_v1 -wsap ERf2XaUa3Gbd
+	else
+		echo &quot;No sub domain routing&quot;
+        if [ &quot;$EBAYTEST&quot; = &quot;$EBAYTESTDEFAULT&quot; ];
+          then
+			echo &quot;Performing eBay test&quot;
+			bin/esf-epages-unity -sub esf-epages-unity -groups EBAY -email p.domin@epages.com -shop $TESTSHOP -url ${_PROTOCOL}://$HOST/epages -surl ${_PROTOCOL}://$UNITYHOST:7000//?shop=$TESTSHOP -ap 0 -sp -l de_DE -r  -browser CHROME -wsak esf_soap_v1 -wsap ERf2XaUa3Gbd -rulive ePages_Software-EPAGESSOFTF277G-awvjirxju -rusandbox epages_Software-ePagiu320-mxpxtazjw
+        fi
+		bin/esf-epages-unity -sub esf-epages-unity -groups $TESTGROUP -email p.domin@epages.com -shop $TESTSHOP -url ${_PROTOCOL}://$HOST/epages -surl ${_PROTOCOL}://$UNITYHOST:7000//?shop=$TESTSHOP -ap 0 -sp -l de_DE -r  -browser CHROME -wsak esf_soap_v1 -wsap ERf2XaUa3Gbd
+fi
+
+if [ &quot;$UNSTABLE&quot; = &quot;YES&quot; ];
+	then
+		echo &quot;Group UNSTABLE will be executed&quot;
+		bin/esf-epages-unity -sub esf-epages-unity -groups UNSTABLE -email p.domin@epages.com -shop $TESTSHOP -url ${_PROTOCOL}://$TESTSHOP.$HOST/epages -surl ${_PROTOCOL}://$TESTSHOP.$HOST -ap 0 -sp -l de_DE -r -browser CHROME -wsak esf_soap_v1 -wsap ERf2XaUa3Gbd
+
+	else
+		echo &quot;Group QAURANTINE will not be executed&quot;
+fi
+</command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers>
+    <hudson.tasks.ArtifactArchiver>
+      <artifacts>esf/log/**</artifacts>
+      <allowEmptyArchive>true</allowEmptyArchive>
+      <onlyIfSuccessful>false</onlyIfSuccessful>
+      <fingerprint>false</fingerprint>
+      <defaultExcludes>true</defaultExcludes>
+      <caseSensitive>true</caseSensitive>
+    </hudson.tasks.ArtifactArchiver>
+    <hudson.plugins.emailext.ExtendedEmailPublisher plugin="email-ext@2.57.2">
+      <recipientList>p.domin@epages.com</recipientList>
+      <configuredTriggers>
+        <hudson.plugins.emailext.plugins.trigger.UnstableTrigger>
+          <email>
+            <subject>$PROJECT_DEFAULT_SUBJECT</subject>
+            <body>$PROJECT_DEFAULT_CONTENT</body>
+            <recipientProviders>
+              <hudson.plugins.emailext.plugins.recipients.ListRecipientProvider/>
+            </recipientProviders>
+            <attachmentsPattern></attachmentsPattern>
+            <attachBuildLog>false</attachBuildLog>
+            <compressBuildLog>false</compressBuildLog>
+            <contentType>project</contentType>
+          </email>
+        </hudson.plugins.emailext.plugins.trigger.UnstableTrigger>
+        <hudson.plugins.emailext.plugins.trigger.StillFailingTrigger>
+          <email>
+            <subject>$PROJECT_DEFAULT_SUBJECT</subject>
+            <body>$PROJECT_DEFAULT_CONTENT</body>
+            <recipientProviders>
+              <hudson.plugins.emailext.plugins.recipients.ListRecipientProvider/>
+            </recipientProviders>
+            <attachmentsPattern></attachmentsPattern>
+            <attachBuildLog>false</attachBuildLog>
+            <compressBuildLog>false</compressBuildLog>
+            <contentType>project</contentType>
+          </email>
+        </hudson.plugins.emailext.plugins.trigger.StillFailingTrigger>
+        <hudson.plugins.emailext.plugins.trigger.StillUnstableTrigger>
+          <email>
+            <subject>$PROJECT_DEFAULT_SUBJECT</subject>
+            <body>$PROJECT_DEFAULT_CONTENT</body>
+            <recipientProviders>
+              <hudson.plugins.emailext.plugins.recipients.ListRecipientProvider/>
+            </recipientProviders>
+            <attachmentsPattern></attachmentsPattern>
+            <attachBuildLog>false</attachBuildLog>
+            <compressBuildLog>false</compressBuildLog>
+            <contentType>project</contentType>
+          </email>
+        </hudson.plugins.emailext.plugins.trigger.StillUnstableTrigger>
+        <hudson.plugins.emailext.plugins.trigger.FailureTrigger>
+          <email>
+            <subject>$PROJECT_DEFAULT_SUBJECT</subject>
+            <body>$PROJECT_DEFAULT_CONTENT</body>
+            <recipientProviders>
+              <hudson.plugins.emailext.plugins.recipients.ListRecipientProvider/>
+            </recipientProviders>
+            <attachmentsPattern></attachmentsPattern>
+            <attachBuildLog>false</attachBuildLog>
+            <compressBuildLog>false</compressBuildLog>
+            <contentType>project</contentType>
+          </email>
+        </hudson.plugins.emailext.plugins.trigger.FailureTrigger>
+      </configuredTriggers>
+      <contentType>text/plain</contentType>
+      <defaultSubject>[CI][${FILE, path=&quot;/tmp/cvs_branch&quot;}] ${PROJECT_NAME}: ${BUILD_STATUS}</defaultSubject>
+      <defaultContent>Node: ${ENV, var=&quot;NODE_NAME&quot;}
+Branch: ${FILE, path=&quot;/tmp/cvs_branch&quot;}
+Build: ${BUILD_NUMBER} - ${BUILD_URL}
+
+Build log:
+${BUILD_LOG, maxLines=100, escapeHtml=0}</defaultContent>
+      <attachmentsPattern></attachmentsPattern>
+      <presendScript></presendScript>
+      <postsendScript></postsendScript>
+      <attachBuildLog>false</attachBuildLog>
+      <compressBuildLog>false</compressBuildLog>
+      <replyTo></replyTo>
+      <saveOutput>false</saveOutput>
+      <disabled>false</disabled>
+    </hudson.plugins.emailext.ExtendedEmailPublisher>
+    <com.chikli.hudson.plugin.naginator.NaginatorPublisher plugin="naginator@1.17.2">
+      <regexpForRerun>java.io.IOException</regexpForRerun>
+      <rerunIfUnstable>true</rerunIfUnstable>
+      <rerunMatrixPart>false</rerunMatrixPart>
+      <checkRegexp>true</checkRegexp>
+      <regexpForMatrixStrategy>TestParent</regexpForMatrixStrategy>
+      <delay class="com.chikli.hudson.plugin.naginator.ProgressiveDelay">
+        <increment>300</increment>
+        <max>10800</max>
+      </delay>
+      <maxSchedule>0</maxSchedule>
+    </com.chikli.hudson.plugin.naginator.NaginatorPublisher>
+  </publishers>
+  <buildWrappers>
+    <hudson.plugins.timestamper.TimestamperBuildWrapper plugin="timestamper@1.8.4"/>
+  </buildWrappers>
+</project>

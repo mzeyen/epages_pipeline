@@ -1,0 +1,171 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description>This job will build an epages installation with some Unity features. &lt;br /&gt;</description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <hudson.plugins.buildblocker.BuildBlockerProperty plugin="build-blocker-plugin@1.7.3">
+      <useBuildBlocker>false</useBuildBlocker>
+      <blockLevel>GLOBAL</blockLevel>
+      <scanQueueFor>DISABLED</scanQueueFor>
+      <blockingJobs></blockingJobs>
+    </hudson.plugins.buildblocker.BuildBlockerProperty>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>VERSION</name>
+          <description></description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>UNITY_URL</name>
+          <description></description>
+          <defaultValue>unity.epages.com</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.ChoiceParameterDefinition>
+          <name>MACHINE</name>
+          <description></description>
+          <choices class="java.util.Arrays$ArrayList">
+            <a class="string-array">
+              <string>unity-01.epages.com</string>
+              <string>unity-02.epages.com</string>
+            </a>
+          </choices>
+        </hudson.model.ChoiceParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+    <com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty plugin="naginator@1.17.2">
+      <optOut>true</optOut>
+    </com.chikli.hudson.plugin.naginator.NaginatorOptOutProperty>
+    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.25">
+      <autoRebuild>false</autoRebuild>
+      <rebuildDisabled>false</rebuildDisabled>
+    </com.sonyericsson.rebuild.RebuildSettings>
+    <de.pellepelster.jenkins.walldisplay.WallDisplayJobProperty plugin="jenkinswalldisplay@0.6.30"/>
+  </properties>
+  <scm class="hudson.plugins.git.GitSCM" plugin="git@2.5.3">
+    <configVersion>2</configVersion>
+    <userRemoteConfigs>
+      <hudson.plugins.git.UserRemoteConfig>
+        <url>git@github.com:ePages-de/Cartridges.git</url>
+        <credentialsId>596d6633-1bb8-4ba9-9a9d-b4c652127182</credentialsId>
+      </hudson.plugins.git.UserRemoteConfig>
+    </userRemoteConfigs>
+    <branches>
+      <hudson.plugins.git.BranchSpec>
+        <name>refs/tags/v${VERSION}</name>
+      </hudson.plugins.git.BranchSpec>
+    </branches>
+    <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+    <submoduleCfg class="list"/>
+    <extensions/>
+  </scm>
+  <canRoam>true</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers/>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+export BUILD_ID=dontKillMe
+source /etc/default/epages6
+
+#expect epagesj db changes?
+mysql -e &quot;drop database epagesj&quot;
+
+#reinstall
+rm -rf $EPAGES_CARTRIDGES/* &amp;&amp; cp -r $WORKSPACE/* $EPAGES_CARTRIDGES/
+cd $EPAGES_CARTRIDGES/DE_EPAGES &amp;&amp; $PERL Makefile.PL &amp;&amp; make reinstall
+
+#configuring installation
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/Object/Scripts/set.pl -storename Store -path / DomainNameUnity=&apos;unity.epages.com&apos; UnityBaseURL=&quot;http://$(hostname --fqdn)&quot; UnityUrlScheme=&apos;unity.epages.com&apos; UnityApiUrlScheme=&apos;unity.epages.com/api/v2&apos; UnityWebServerPort=80 UnitySSLWebServerPort=443 HasSSLCertificateUnity=0 HasSSLCertificate=0
+/var/epages/ini-config.sh -i -f /srv/epages/eproot/Shared/Config/Database.d/Store.conf -s Connection -k jwtsecret -v &apos;this-is-super-secret---not&apos;
+  
+#configure appserver
+~/epages-infra/scripts/epages/configure_app_servers.sh -m 490 -n 6
+  
+#configure java services
+for service in epagesj epages-solr epages-solr-slave
+  do  
+    /var/epages/ini-config.sh -i -f $EPAGESJ/conf/epagesj.conf -s $service  -k commandLineArguments -v &apos; &quot;-Xms256m -Xmx256m&quot;&apos;
+done
+
+#configure mysql
+echo &quot;
+slave_net_timeout=60
+net_write_timeout=600
+query_cache_type=2
+query_cache_size=1M
+table_open_cache=500
+table_definition_cache=5000
+innodb_file_per_table=1
+innodb_buffer_pool_size=50M
+innodb_open_files=300
+innodb_log_buffer_size=5M
+max_heap_table_size=10M
+tmp_table_size=10M
+max_allowed_packet=16M
+&quot; &gt;  /etc/my.cnf.d/epages_am.conf
+
+#remove auth, reset mongodb and recreate indexes
+sed -e &apos;/keyFile=/ s/^#*/#/g&apos; -i /etc/mongod.conf
+sed -e &apos;/auth=/ s/^#*/#/g&apos; -i /etc/mongod.conf
+mongo epagesj --eval &quot;db.shop.drop()&quot;
+$PERL $EPAGES_CARTRIDGES/DE_EPAGES/RemoteSearch/Scripts/manageIndex.pl -storename Store -all -reinit
+
+#restart services
+service epages6 start
+service epages6 start_java
+</command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers>
+    <hudson.plugins.emailext.ExtendedEmailPublisher plugin="email-ext@2.57.2">
+      <recipientList>f.ziller@epages.de, e.mueller@epages.de</recipientList>
+      <configuredTriggers>
+        <hudson.plugins.emailext.plugins.trigger.FailureTrigger>
+          <email>
+            <recipientList></recipientList>
+            <subject>$PROJECT_DEFAULT_SUBJECT</subject>
+            <body>$PROJECT_DEFAULT_CONTENT</body>
+            <recipientProviders>
+              <hudson.plugins.emailext.plugins.recipients.DevelopersRecipientProvider/>
+            </recipientProviders>
+            <attachmentsPattern></attachmentsPattern>
+            <attachBuildLog>false</attachBuildLog>
+            <compressBuildLog>false</compressBuildLog>
+            <replyTo>$PROJECT_DEFAULT_REPLYTO</replyTo>
+            <contentType>project</contentType>
+          </email>
+        </hudson.plugins.emailext.plugins.trigger.FailureTrigger>
+      </configuredTriggers>
+      <contentType>default</contentType>
+      <defaultSubject>$DEFAULT_SUBJECT</defaultSubject>
+      <defaultContent>$DEFAULT_CONTENT</defaultContent>
+      <attachmentsPattern></attachmentsPattern>
+      <presendScript>$DEFAULT_PRESEND_SCRIPT</presendScript>
+      <attachBuildLog>false</attachBuildLog>
+      <compressBuildLog>false</compressBuildLog>
+      <replyTo>$DEFAULT_REPLYTO</replyTo>
+      <saveOutput>false</saveOutput>
+      <disabled>false</disabled>
+    </hudson.plugins.emailext.ExtendedEmailPublisher>
+    <com.chikli.hudson.plugin.naginator.NaginatorPublisher plugin="naginator@1.17.2">
+      <regexpForRerun>java.io.IOException</regexpForRerun>
+      <rerunIfUnstable>false</rerunIfUnstable>
+      <rerunMatrixPart>false</rerunMatrixPart>
+      <checkRegexp>true</checkRegexp>
+      <regexpForMatrixStrategy>TestParent</regexpForMatrixStrategy>
+      <delay class="com.chikli.hudson.plugin.naginator.ProgressiveDelay">
+        <increment>300</increment>
+        <max>10800</max>
+      </delay>
+      <maxSchedule>0</maxSchedule>
+    </com.chikli.hudson.plugin.naginator.NaginatorPublisher>
+  </publishers>
+  <buildWrappers>
+    <hudson.plugins.timestamper.TimestamperBuildWrapper plugin="timestamper@1.8.8"/>
+  </buildWrappers>
+</project>
